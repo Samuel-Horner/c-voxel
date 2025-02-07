@@ -14,8 +14,29 @@
 unsigned int window_width = 500;
 unsigned int window_height = 500;
 
+void makeWindowFullscreen(GLFWwindow *window) {
+    GLFWmonitor *monitor = glfwGetPrimaryMonitor();
+    const GLFWvidmode *mode = glfwGetVideoMode(monitor); 
+
+    glfwSetWindowMonitor(window, monitor, 0, 0, mode->width, mode->height, mode->refreshRate);
+}
+
+void makeWindowWindowed(GLFWwindow *window) {
+    glfwSetWindowMonitor(window, NULL, 0, 0, window_width, window_height, 0);
+}
+
+unsigned int f_11_down = 0;
+
 void processInput(GLFWwindow *window) {
     if(glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS) { glfwSetWindowShouldClose(window, 1); }
+    else if (glfwGetKey(window, GLFW_KEY_F11) == GLFW_PRESS) { 
+        if (f_11_down) { return; }
+        GLFWmonitor *monitor = glfwGetWindowMonitor(window);
+        if (monitor == NULL) { makeWindowFullscreen(window); }
+        else { makeWindowWindowed(window); }
+        f_11_down = 1;
+    }
+    else if (glfwGetKey(window, GLFW_KEY_F11) != GLFW_PRESS) { f_11_down = 0; }
 }
 
 void framebufferSizeCallback(GLFWwindow* window, int width, int height){
@@ -38,6 +59,12 @@ float getTimeStamp() {
 
 void resolutionFunction(unsigned int location){
     glUniform2f(location, (float) window_width, (float) window_height);
+}
+
+float start_time;
+
+void timeFunction(unsigned int location){
+    glUniform1f(location, getTimeStamp() - start_time);
 }
 
 // NEVER FREE!
@@ -90,11 +117,13 @@ int main() {
     ProgramBundle programBundle = createProgram(vertex_source, fragment_source);
 
     // Bind uniforms
-    char *uniform_names[1] = {"resolution"};
-    UniformFunction uniform_funcs[1] = {resolutionFunction};
-    bindUniforms(&programBundle, uniform_names, uniform_funcs, 1);
+    #define UNIFORM_COUNT 2
+    char *uniform_names[UNIFORM_COUNT] = {"resolution", "time"};
+    UniformFunction uniform_funcs[UNIFORM_COUNT] = {resolutionFunction, timeFunction};
+    bindUniforms(&programBundle, uniform_names, uniform_funcs, UNIFORM_COUNT);
 
     float last = getTimeStamp();
+    start_time = last;
 
     while(!glfwWindowShouldClose(window)){
         // Calculate delta time

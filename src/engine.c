@@ -171,7 +171,6 @@ void render(GLFWwindow *window, unsigned int program, BufferBundle *buffer) {
     glBindVertexArray(buffer->VAO);
     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, buffer->EBO);
 
-    // glDrawArrays(GL_TRIANGLES, 0, length);
     glDrawElements(GL_TRIANGLES, buffer->length, GL_UNSIGNED_INT, 0);
 
     glfwSwapBuffers(window);
