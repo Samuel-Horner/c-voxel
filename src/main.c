@@ -1,157 +1,114 @@
+#include "engine.c"
+#include "shader.c"
+
+#include <stdlib.h>
 #include <stdio.h>
+#include <errno.h>
+#include <time.h>
+#include <unistd.h>
+#include <limits.h>
+
 #include "glad/gl.h"
 #include <GLFW/glfw3.h>
 
-const int WINDOW_WIDTH = 800;
-const int WINDOW_HEIGHT = 600;
-
-const char *VERTEX_SHADER_SOURCE = "#version 330 core\n"
-    "layout (location = 0) in vec3 aPos;\n"
-    "void main()\n"
-    "{\n"
-    "   gl_Position = vec4(aPos.x, aPos.y, aPos.z, 1.0);\n"
-    "}\0";
-
-const char *FRAGMENT_SHADER_SOURCE = "#version 330 core\n"
-    "out vec4 FragColor;\n"
-    "void main()\n"
-    "{\n"
-        "FragColor = vec4(1.0f, 0.5f, 0.2f, 1.0f);\n"
-    "}\0";
+unsigned int window_width = 500;
+unsigned int window_height = 500;
 
 void processInput(GLFWwindow *window) {
     if(glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS) { glfwSetWindowShouldClose(window, 1); }
 }
 
-GLFWwindow* initialiseWindow() {
-    GLFWwindow* window;
+void framebufferSizeCallback(GLFWwindow* window, int width, int height){
+    window_width = width;
+    window_height = height;
+    glViewport(0, 0, width, height);
+    printf("Window resized to: %dx%d\n", width, height);
+}
 
-    if (!glfwInit()){
-        printf("GLFW didn't initialise.\n");
-        return NULL;
+float getTimeStamp() {
+    struct timespec spec;
+    if (clock_gettime(CLOCK_MONOTONIC, &spec) != 0) {
+        int errsv = errno;
+        printf("ERROR: in clock_gettime. errno: %d\n", errno);
+        return -1.;
     }
 
-    glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
-    glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
-    glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
-    glfwWindowHint(GLFW_RESIZABLE, GLFW_FALSE);
-    glfwWindowHint(GLFW_FLOATING, GLFW_TRUE);
-
-    window = glfwCreateWindow(WINDOW_WIDTH, WINDOW_HEIGHT, "C Voxel", NULL, NULL);
-    glfwMakeContextCurrent(window);
-
-    return window;
+    return (float) spec.tv_sec + spec.tv_nsec / 1.0e9;
 }
 
-int setupOpenGL() {
-    int version = gladLoadGL(glfwGetProcAddress);
-    if (version == 0) {
-        printf("Failed to intialize OpenGL contex.\n");
-        return 0;
-    }
-
-    printf("Loaded OpenGL %d.%d\n", GLAD_VERSION_MAJOR(version), GLAD_VERSION_MINOR(version));
-
-    glViewport(0, 0, WINDOW_WIDTH, WINDOW_HEIGHT);
-    glClearColor(1., 0., 1., 1.);
-    return 1;
+void resolutionFunction(unsigned int location){
+    glUniform2f(location, (float) window_width, (float) window_height);
 }
 
-int compileShader(unsigned int shader) {
-    glCompileShader(shader);
-    int success;
-    glGetShaderiv(shader, GL_COMPILE_STATUS, &success);
+// NEVER FREE!
+const float VERTICES[] = {
+   -1.,-1., 0.,  0., 0., 0.,
+    1.,-1., 0.,  1., 0., 0.,
+   -1., 1., 0.,  0., 1., 0.,
+    1., 1., 0.,  1., 1., 0.,
+};
 
-    if (!success) {
-        char info_log[512];
-        glGetShaderInfoLog(shader, 512, NULL, info_log);
-        printf("ERROR: %s\n", info_log);
-    }
+VertexArray vertices = {
+    .values = VERTICES,
+    .size = 24
+};
 
-    return success;
-}
+const unsigned int INDICES[] = {
+    0, 1, 2,
+    3, 2, 1
+};
 
-unsigned int createProgram(const char *vertex_source, const char *fragment_source) {
-    unsigned int vertex_shader, fragment_shader;
-    vertex_shader = glCreateShader(GL_VERTEX_SHADER);
-    fragment_shader = glCreateShader(GL_FRAGMENT_SHADER);
-
-    glShaderSource(vertex_shader, 1, &vertex_source, NULL);
-    glShaderSource(fragment_shader, 1, &fragment_source, NULL);
-
-    if (!compileShader(vertex_shader)){ printf("Error compiling the vertex shader!"); }
-    if (!compileShader(fragment_shader)){ printf("Error compiling the vertex shader!"); }
-
-    unsigned int shader_program;
-    shader_program = glCreateProgram();
-
-    glAttachShader(shader_program, vertex_shader);
-    glAttachShader(shader_program, fragment_shader);
-    glLinkProgram(shader_program);
-
-    int success;
-    glGetProgramiv(shader_program, GL_LINK_STATUS, &success);
-    if(!success) {
-        char info_log[512];
-        glGetProgramInfoLog(shader_program, 512, NULL, info_log);
-        printf("ERROR IN PROGRAM: %s\n", info_log);
-    }
-
-    glDeleteShader(vertex_shader);
-    glDeleteShader(fragment_shader);
-
-    return shader_program;
-}
-
-unsigned int createVAO(float *vertices) {
-    unsigned int VAO, VBO;
-    glGenVertexArrays(1, &VAO);
-    glGenBuffers(1, &VBO);
-
-    glBindVertexArray(VAO);
-
-    glBindBuffer(GL_ARRAY_BUFFER, VBO);
-    glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
-
-    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), NULL);
-    glEnableVertexAttribArray(0); 
-
-    return VAO;
-}
-
-void render(GLFWwindow* window, unsigned int program, unsigned int VAO) {
-    glClear(GL_COLOR_BUFFER_BIT);
-
-    glUseProgram(program);
-    glBindVertexArray(VAO);
-
-    glDrawArrays(GL_TRIANGLES, 0, 3);
-
-
-    glfwSwapBuffers(window);
-}
+IndexArray indices = {
+    .values = INDICES,
+    .size = 6
+};
 
 int main() {
-    GLFWwindow* window = initialiseWindow();
+    // Check CWD!
+    char cwd[PATH_MAX];
+    if (getcwd(cwd, sizeof(cwd)) != NULL) { printf("Current working dir: %s\n", cwd); }
+    else { printf("Couldnt fetch CWD."); return -1; }
+
+    // Initialise window and glsl
+    GLFWwindow* window = initialiseWindow(window_width, window_height);
     if (window == NULL) { return -1; }
+    if (!setupOpenGL(window_width, window_height)) { return -1; }
+    glfwSetFramebufferSizeCallback(window, framebufferSizeCallback);  
 
-    if (!setupOpenGL()) { return -1; }
+    // Fetch vertex and fragment source
+    char *vertex_source = getShaderSource("./src/shaders/basic.vert");
+    if (vertex_source == NULL) { printf("Error fecthing vertex shader.\n"); return -1; }
 
-    float vertices[] = {
-        -0.5f, -0.5f, 0.0f,
-        0.5f, -0.5f, 0.0f,
-        0.0f,  0.5f, 0.0f
-    };
+    char *fragment_source = getShaderSource("./src/shaders/basic.frag");
+    if (fragment_source == NULL) { printf("Error fecthing fragment shader.\n"); return -1; }
 
-    unsigned int VAO = createVAO(vertices);
+    // Create buffer bundle
+    unsigned int vertex_split[2] = {3, 3};
+    BufferBundle bufferBundle = createVAO(vertices, indices, 6, 2, vertex_split);
 
-    unsigned int program = createProgram(VERTEX_SHADER_SOURCE, FRAGMENT_SHADER_SOURCE);
-    glUseProgram(program); 
+    // Create program bundle
+    ProgramBundle programBundle = createProgram(vertex_source, fragment_source);
+
+    // Bind uniforms
+    char *uniform_names[1] = {"resolution"};
+    UniformFunction uniform_funcs[1] = {resolutionFunction};
+    bindUniforms(&programBundle, uniform_names, uniform_funcs, 1);
+
+    float last = getTimeStamp();
 
     while(!glfwWindowShouldClose(window)){
+        // Calculate delta time
+        float current = getTimeStamp();
+        float delta_time = current - last;
+        last = current;
+
+        // Process events
         glfwPollEvents();
         processInput(window);
-        render(window, program, VAO);
+
+        // Apply uniforms and render
+        applyUniforms(&programBundle);
+        render(window, programBundle.programID, &bufferBundle);
     }
 
     glfwTerminate();
