@@ -1,3 +1,5 @@
+#include "cglm/cglm.h"
+
 #include "engine.c"
 #include "shader.c"
 
@@ -25,7 +27,7 @@ void makeWindowWindowed(GLFWwindow *window) {
     glfwSetWindowMonitor(window, NULL, 0, 0, window_width, window_height, 0);
 }
 
-unsigned int f_11_down = 0;
+unsigned int f_11_down = 0; // Needed for only down press functionality
 
 void processInput(GLFWwindow *window) {
     if(glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS) { glfwSetWindowShouldClose(window, 1); }
@@ -37,13 +39,6 @@ void processInput(GLFWwindow *window) {
         f_11_down = 1;
     }
     else if (glfwGetKey(window, GLFW_KEY_F11) != GLFW_PRESS) { f_11_down = 0; }
-}
-
-void framebufferSizeCallback(GLFWwindow* window, int width, int height){
-    window_width = width;
-    window_height = height;
-    glViewport(0, 0, width, height);
-    printf("Window resized to: %dx%d\n", width, height);
 }
 
 float getTimeStamp() {
@@ -62,32 +57,75 @@ void resolutionFunction(unsigned int location){
 }
 
 float start_time;
-
 void timeFunction(unsigned int location){
     glUniform1f(location, getTimeStamp() - start_time);
 }
 
+
+// Projection Stuff
+mat4 view = GLM_MAT4_IDENTITY_INIT;
+void viewFunction(unsigned int location){
+    glUniformMatrix4fv(location, 1, GL_FALSE, (float *) view);
+}
+
+mat4 model = GLM_MAT4_IDENTITY_INIT;
+void modelFunction(unsigned int location){
+    glUniformMatrix4fv(location, 1, GL_FALSE, (float *) model);
+}
+
+mat4 projection = GLM_MAT4_IDENTITY_INIT;
+void projectionFunction(unsigned int location){
+    glUniformMatrix4fv(location, 1, GL_FALSE, (float *) projection);
+}
+
+// Call Backs
+void framebufferSizeCallback(GLFWwindow* window, int width, int height){
+    window_width = width;
+    window_height = height;
+    glViewport(0, 0, width, height);
+    glm_perspective(glm_rad(45.), (float) window_width / (float) window_height, .1, 100., projection);
+    printf("Window resized to: %dx%d\n", width, height);
+}
+
+void cursorPositionCallback(GLFWwindow* window, double x, double y) {
+    printf("x:%f y:%f\n", x, y);
+}
+
 // NEVER FREE!
 const float VERTICES[] = {
-   -1.,-1., 0.,  0., 0., 0.,
-    1.,-1., 0.,  1., 0., 0.,
-   -1., 1., 0.,  0., 1., 0.,
-    1., 1., 0.,  1., 1., 0.,
+    1., 1., 1.,  1., 0., 0.,
+    1.,-1., 1.,  0., 1., 0.,
+   -1.,-1., 1.,  0., 0., 1.,
+   -1., 1., 1.,  1., 1., 1.,
+    1., 1.,-1.,  .5, 0., 0.,
+    1.,-1.,-1.,  0., .5, 0.,
+   -1.,-1.,-1.,  0., 0., .5,
+   -1., 1.,-1.,  .5, .5, .5
 };
 
 VertexArray vertices = {
     .values = VERTICES,
-    .size = 24
+    .size = 48
 };
 
 const unsigned int INDICES[] = {
-    0, 1, 2,
-    3, 2, 1
+    0, 1, 3, // Back Face
+    1, 2, 3,
+    4, 5, 7, // Front Face
+    5, 6, 7,
+    4, 5, 0, // Right Face
+    5, 1, 0,
+    7, 6, 3, // Left Face
+    6, 2, 3,
+    0, 4, 7, // Top Face
+    3, 0, 7,
+    1, 5, 6, // Bottom Face
+    2, 1, 6
 };
 
 IndexArray indices = {
     .values = INDICES,
-    .size = 6
+    .size = 36
 };
 
 int main() {
@@ -100,7 +138,8 @@ int main() {
     GLFWwindow* window = initialiseWindow(window_width, window_height);
     if (window == NULL) { return -1; }
     if (!setupOpenGL(window_width, window_height)) { return -1; }
-    glfwSetFramebufferSizeCallback(window, framebufferSizeCallback);  
+    glfwSetFramebufferSizeCallback(window, framebufferSizeCallback);
+    glfwSetCursorPosCallback(window, cursorPositionCallback);
 
     // Fetch vertex and fragment source
     char *vertex_source = getShaderSource("./src/shaders/basic.vert");
@@ -117,11 +156,14 @@ int main() {
     ProgramBundle programBundle = createProgram(vertex_source, fragment_source);
 
     // Bind uniforms
-    #define UNIFORM_COUNT 2
-    char *uniform_names[UNIFORM_COUNT] = {"resolution", "time"};
-    UniformFunction uniform_funcs[UNIFORM_COUNT] = {resolutionFunction, timeFunction};
+    #define UNIFORM_COUNT 5
+    char *uniform_names[UNIFORM_COUNT] = {"resolution", "time", "model", "view", "projection"};
+    UniformFunction uniform_funcs[UNIFORM_COUNT] = {resolutionFunction, timeFunction, modelFunction, viewFunction, projectionFunction};
     bindUniforms(&programBundle, uniform_names, uniform_funcs, UNIFORM_COUNT);
 
+    glm_translate(view, (vec3) {0., 0., -10.});
+    glm_perspective(glm_rad(45.), (float) window_width / (float) window_height, .1, 100., projection);
+    
     float last = getTimeStamp();
     start_time = last;
 
@@ -130,6 +172,8 @@ int main() {
         float current = getTimeStamp();
         float delta_time = current - last;
         last = current;
+
+        glm_rotate(model, delta_time, (vec3) {.5, 1., 0});
 
         // Process events
         glfwPollEvents();

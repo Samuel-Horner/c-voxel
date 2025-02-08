@@ -53,6 +53,8 @@ GLFWwindow* initialiseWindow(unsigned int width, unsigned int height) {
     window = glfwCreateWindow(width, height, "C Voxel", NULL, NULL);
     glfwMakeContextCurrent(window);
 
+    glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
+
     return window;
 }
 
@@ -67,6 +69,9 @@ int setupOpenGL(unsigned int width, unsigned int height) {
 
     glViewport(0, 0, width, height);
     glClearColor(1., 0., 1., 1.);
+    
+    glEnable(GL_DEPTH_TEST);
+
     return 1;
 }
 
@@ -165,7 +170,7 @@ void applyUniforms(ProgramBundle *program) {
 }
 
 void render(GLFWwindow *window, unsigned int program, BufferBundle *buffer) {
-    glClear(GL_COLOR_BUFFER_BIT);
+    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
     glUseProgram(program);
     glBindVertexArray(buffer->VAO);
