@@ -2,6 +2,7 @@
 
 #include "engine.c"
 #include "shader.c"
+#include "player.c"
 
 #include <stdlib.h>
 #include <stdio.h>
@@ -27,20 +28,6 @@ void makeWindowWindowed(GLFWwindow *window) {
     glfwSetWindowMonitor(window, NULL, 0, 0, window_width, window_height, 0);
 }
 
-unsigned int f_11_down = 0; // Needed for only down press functionality
-
-void processInput(GLFWwindow *window) {
-    if(glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS) { glfwSetWindowShouldClose(window, 1); }
-    else if (glfwGetKey(window, GLFW_KEY_F11) == GLFW_PRESS) { 
-        if (f_11_down) { return; }
-        GLFWmonitor *monitor = glfwGetWindowMonitor(window);
-        if (monitor == NULL) { makeWindowFullscreen(window); }
-        else { makeWindowWindowed(window); }
-        f_11_down = 1;
-    }
-    else if (glfwGetKey(window, GLFW_KEY_F11) != GLFW_PRESS) { f_11_down = 0; }
-}
-
 float getTimeStamp() {
     struct timespec spec;
     if (clock_gettime(CLOCK_MONOTONIC, &spec) != 0) {
@@ -61,18 +48,13 @@ void timeFunction(unsigned int location){
     glUniform1f(location, getTimeStamp() - start_time);
 }
 
-
-// Projection Stuff
-mat4 view = GLM_MAT4_IDENTITY_INIT;
-void viewFunction(unsigned int location){
-    glUniformMatrix4fv(location, 1, GL_FALSE, (float *) view);
-}
-
+// Model Stuff
 mat4 model = GLM_MAT4_IDENTITY_INIT;
 void modelFunction(unsigned int location){
     glUniformMatrix4fv(location, 1, GL_FALSE, (float *) model);
 }
 
+// Projection Stuff
 mat4 projection = GLM_MAT4_IDENTITY_INIT;
 void projectionFunction(unsigned int location){
     glUniformMatrix4fv(location, 1, GL_FALSE, (float *) projection);
@@ -87,9 +69,22 @@ void framebufferSizeCallback(GLFWwindow* window, int width, int height){
     printf("Window resized to: %dx%d\n", width, height);
 }
 
-void cursorPositionCallback(GLFWwindow* window, double x, double y) {
-    printf("x:%f y:%f\n", x, y);
+unsigned int f_11_down = 0; // Needed for only down press functionality
+void processInput(GLFWwindow *window, float delta_time) {
+    if(glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS) { glfwSetWindowShouldClose(window, 1); }
+
+    if (glfwGetKey(window, GLFW_KEY_F11) == GLFW_PRESS) { 
+        if (f_11_down) { return; }
+        GLFWmonitor *monitor = glfwGetWindowMonitor(window);
+        if (monitor == NULL) { makeWindowFullscreen(window); }
+        else { makeWindowWindowed(window); }
+        f_11_down = 1;
+    }
+    else if (glfwGetKey(window, GLFW_KEY_F11) != GLFW_PRESS) { f_11_down = 0; }
+
+    cameraMovement(window, delta_time);
 }
+
 
 // NEVER FREE!
 const float VERTICES[] = {
@@ -150,18 +145,17 @@ int main() {
 
     // Create buffer bundle
     unsigned int vertex_split[2] = {3, 3};
-    BufferBundle bufferBundle = createVAO(vertices, indices, 6, 2, vertex_split);
+    BufferBundle buffer_bundle = createVAO(vertices, indices, 6, 2, vertex_split);
 
     // Create program bundle
-    ProgramBundle programBundle = createProgram(vertex_source, fragment_source);
+    ProgramBundle program_bundle = createProgram(vertex_source, fragment_source);
 
     // Bind uniforms
     #define UNIFORM_COUNT 5
     char *uniform_names[UNIFORM_COUNT] = {"resolution", "time", "model", "view", "projection"};
     UniformFunction uniform_funcs[UNIFORM_COUNT] = {resolutionFunction, timeFunction, modelFunction, viewFunction, projectionFunction};
-    bindUniforms(&programBundle, uniform_names, uniform_funcs, UNIFORM_COUNT);
+    bindUniforms(&program_bundle, uniform_names, uniform_funcs, UNIFORM_COUNT);
 
-    glm_translate(view, (vec3) {0., 0., -10.});
     glm_perspective(glm_rad(45.), (float) window_width / (float) window_height, .1, 100., projection);
     
     float last = getTimeStamp();
@@ -173,15 +167,15 @@ int main() {
         float delta_time = current - last;
         last = current;
 
-        glm_rotate(model, delta_time, (vec3) {.5, 1., 0});
-
         // Process events
         glfwPollEvents();
-        processInput(window);
+        processInput(window, delta_time);
+        if (glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS) {printf("w");}
 
         // Apply uniforms and render
-        applyUniforms(&programBundle);
-        render(window, programBundle.programID, &bufferBundle);
+        //glm_rotate(model, delta_time, (vec3) {.5, 1., 0});
+        applyUniforms(&program_bundle);
+        render(window, program_bundle.programID, &buffer_bundle);
     }
 
     glfwTerminate();
