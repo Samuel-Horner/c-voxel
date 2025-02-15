@@ -1,3 +1,6 @@
+#ifndef ENGINE
+#define ENGINE
+
 #include <stdio.h>
 #include <time.h>
 #include "glad/gl.h"
@@ -5,12 +8,12 @@
 #include <stdlib.h>
 
 typedef struct VertexArray {
-    const float *values;
+    float *values;
     unsigned int size;
 } VertexArray;
 
 typedef struct IndexArray {
-    const unsigned int *values;
+    int *values;
     unsigned int size;
 } IndexArray;
 
@@ -169,14 +172,20 @@ void applyUniforms(ProgramBundle *program) {
     }
 }
 
-void render(GLFWwindow *window, unsigned int program, BufferBundle *buffer) {
+void clearWindow(GLFWwindow *window) {
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+}
 
+void render(GLFWwindow *window, unsigned int program, BufferBundle *buffer) {
     glUseProgram(program);
     glBindVertexArray(buffer->VAO);
     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, buffer->EBO);
 
     glDrawElements(GL_TRIANGLES, buffer->length, GL_UNSIGNED_INT, 0);
+}
 
+void finishRender(GLFWwindow *window){
     glfwSwapBuffers(window);
 }
+
+#endif

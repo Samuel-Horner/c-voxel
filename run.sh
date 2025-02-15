@@ -9,6 +9,7 @@ if [ "$1" = "release" ]; then
     cmake --build build/
     echo "Created new release build"
 else
+    rm ./build/c_voxel
     echo "Creating debug build"
     cmake -S . -B build/ -D CMAKE_BUILD_TYPE=Debug
     cmake --build build/

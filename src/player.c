@@ -1,24 +1,28 @@
+#ifndef PLAYER
+#define PLAYER
+
 #include "cglm/cglm.h"
+#include "glad/gl.h"
 #include <GLFW/glfw3.h>
 
 #include <stdlib.h>
 #include <math.h>
 
 typedef struct Camera {
+    mat4 projection;
     vec3 pos;
     vec3 dir;
-    float pitch;
-    float yaw;
     vec3 right;
     vec3 up;
+    float pitch;
+    float yaw;
     float sensitivity;
     float speed;
 } Camera;
 
-// Player Logic
-Camera cam = {(vec3) {0., 0., -10.}, (vec3) {0., 0., 1.}, 0, 0, (vec3) {1., 0., 0.,}, (vec3) {0., 1., 0.}, 0.05, 10.};
+Camera cam;
 
-void camera_rotate(float yaw, float pitch) {
+void cameraRotate(float yaw, float pitch) {
     cam.yaw += yaw;
     cam.pitch += pitch;
 
@@ -42,16 +46,19 @@ void camera_rotate(float yaw, float pitch) {
 double prev_x = 0;
 double prev_y = 0;
 void cursorPositionCallback(GLFWwindow *window, double x, double y) {
-    camera_rotate((x - prev_x) * cam.sensitivity, -(y - prev_y) * cam.sensitivity);
+    cameraRotate((x - prev_x) * cam.sensitivity, -(y - prev_y) * cam.sensitivity);
     prev_x = x;
     prev_y = y;
-    printf("cam dir: (%3.3f, %3.3f, %3.3f)\n", cam.dir[0], cam.dir[1], cam.dir[2]);
 }
 
 void viewFunction(unsigned int location){
     mat4 view = GLM_MAT4_IDENTITY_INIT;
     glm_look(cam.pos, cam.dir, cam.up, view);
     glUniformMatrix4fv(location, 1, GL_FALSE, (float *) view);
+}
+
+void projectionFunction(unsigned int location){
+    glUniformMatrix4fv(location, 1, GL_FALSE, (float *) cam.projection);
 }
 
 void cameraMovement(GLFWwindow *window, float delta_time) {
@@ -79,3 +86,23 @@ void cameraMovement(GLFWwindow *window, float delta_time) {
     glm_vec3_scale(movement, delta_time * cam.speed, movement);
     glm_vec3_add(cam.pos, movement, cam.pos);
 }
+
+void calculateProjection(int window_width, int window_height) {
+    glm_perspective(glm_rad(45.), (float) window_width / (float) window_height, .1, 100., cam.projection);
+}
+
+void initialisePlayerCamera(int window_width, int window_height) {
+    cam.speed = 10.;
+    cam.sensitivity = 0.05;
+    cam.pitch = 0;
+    cam.yaw = 90; // Start looking in pos_z dir
+    
+    glm_vec3_copy((vec3) {0., 0., -20.}, cam.pos);
+    cameraRotate(0, 0);
+
+    printf("View Dir: (%f, %f, %f)\n", cam.dir[0], cam.dir[1], cam.dir[2]);
+
+    calculateProjection(window_width, window_height);
+}
+
+#endif

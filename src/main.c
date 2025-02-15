@@ -1,8 +1,14 @@
+#ifndef MAIN
+#define MAIN
+
 #include "cglm/cglm.h"
+#include "glad/gl.h"
+#include <GLFW/glfw3.h>
 
 #include "engine.c"
 #include "shader.c"
 #include "player.c"
+#include "chunk.c"
 
 #include <stdlib.h>
 #include <stdio.h>
@@ -11,8 +17,6 @@
 #include <unistd.h>
 #include <limits.h>
 
-#include "glad/gl.h"
-#include <GLFW/glfw3.h>
 
 unsigned int window_width = 500;
 unsigned int window_height = 500;
@@ -49,15 +53,10 @@ void timeFunction(unsigned int location){
 }
 
 // Model Stuff
-mat4 model = GLM_MAT4_IDENTITY_INIT;
+mat4 *model_pointer = NULL;
 void modelFunction(unsigned int location){
-    glUniformMatrix4fv(location, 1, GL_FALSE, (float *) model);
-}
-
-// Projection Stuff
-mat4 projection = GLM_MAT4_IDENTITY_INIT;
-void projectionFunction(unsigned int location){
-    glUniformMatrix4fv(location, 1, GL_FALSE, (float *) projection);
+    if (model_pointer == NULL) { printf("ERROR: Attempted to render with NULL model pointer\n"); return; }
+    glUniformMatrix4fv(location, 1, GL_FALSE, (float *) *model_pointer);
 }
 
 // Call Backs
@@ -65,7 +64,7 @@ void framebufferSizeCallback(GLFWwindow* window, int width, int height){
     window_width = width;
     window_height = height;
     glViewport(0, 0, width, height);
-    glm_perspective(glm_rad(45.), (float) window_width / (float) window_height, .1, 100., projection);
+    calculateProjection(width, height);
     printf("Window resized to: %dx%d\n", width, height);
 }
 
@@ -84,44 +83,6 @@ void processInput(GLFWwindow *window, float delta_time) {
 
     cameraMovement(window, delta_time);
 }
-
-
-// NEVER FREE!
-const float VERTICES[] = {
-    1., 1., 1.,  1., 0., 0.,
-    1.,-1., 1.,  0., 1., 0.,
-   -1.,-1., 1.,  0., 0., 1.,
-   -1., 1., 1.,  1., 1., 1.,
-    1., 1.,-1.,  .5, 0., 0.,
-    1.,-1.,-1.,  0., .5, 0.,
-   -1.,-1.,-1.,  0., 0., .5,
-   -1., 1.,-1.,  .5, .5, .5
-};
-
-VertexArray vertices = {
-    .values = VERTICES,
-    .size = 48
-};
-
-const unsigned int INDICES[] = {
-    0, 1, 3, // Back Face
-    1, 2, 3,
-    4, 5, 7, // Front Face
-    5, 6, 7,
-    4, 5, 0, // Right Face
-    5, 1, 0,
-    7, 6, 3, // Left Face
-    6, 2, 3,
-    0, 4, 7, // Top Face
-    3, 0, 7,
-    1, 5, 6, // Bottom Face
-    2, 1, 6
-};
-
-IndexArray indices = {
-    .values = INDICES,
-    .size = 36
-};
 
 int main() {
     // Check CWD!
@@ -143,10 +104,6 @@ int main() {
     char *fragment_source = getShaderSource("./src/shaders/basic.frag");
     if (fragment_source == NULL) { printf("Error fecthing fragment shader.\n"); return -1; }
 
-    // Create buffer bundle
-    unsigned int vertex_split[2] = {3, 3};
-    BufferBundle buffer_bundle = createVAO(vertices, indices, 6, 2, vertex_split);
-
     // Create program bundle
     ProgramBundle program_bundle = createProgram(vertex_source, fragment_source);
 
@@ -156,7 +113,14 @@ int main() {
     UniformFunction uniform_funcs[UNIFORM_COUNT] = {resolutionFunction, timeFunction, modelFunction, viewFunction, projectionFunction};
     bindUniforms(&program_bundle, uniform_names, uniform_funcs, UNIFORM_COUNT);
 
-    glm_perspective(glm_rad(45.), (float) window_width / (float) window_height, .1, 100., projection);
+ 
+    // Initlialise Camera
+    initialisePlayerCamera(window_width, window_height);
+
+    // Create Chunk
+    Chunk *chunk = createChunk();
+
+    mat4 model_1 = GLM_MAT4_IDENTITY_INIT;
     
     float last = getTimeStamp();
     start_time = last;
@@ -172,13 +136,21 @@ int main() {
         processInput(window, delta_time);
         if (glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS) {printf("w");}
 
+        clearWindow(window);
+
         // Apply uniforms and render
-        //glm_rotate(model, delta_time, (vec3) {.5, 1., 0});
+        // Cube 1
+        model_pointer = &(chunk->model);
         applyUniforms(&program_bundle);
-        render(window, program_bundle.programID, &buffer_bundle);
+        render(window, program_bundle.programID, &(chunk->buffer_bundle));
+        
+        finishRender(window);
     }
 
+    free(chunk);
     glfwTerminate();
 
     return 0;
 }
+
+#endif

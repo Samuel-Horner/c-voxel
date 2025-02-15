@@ -1,3 +1,6 @@
+#ifndef SHADER
+#define SHADER
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <errno.h>
@@ -20,7 +23,7 @@ char* getShaderSource(const char *file_name){
 
     fread(file_contents, file_size, 1, file);
     file_contents[file_size] = '\0'; // Ensure null-termination
-    printf("[Loaded file: %s]\n%s\n==========\n", file_name, file_contents);
+    printf("[Loaded file: %s]\n", file_name);
 
     unsigned int null_terminated = 0;
     for (unsigned int i = 0; i <= file_size; i++) {
@@ -34,3 +37,5 @@ char* getShaderSource(const char *file_name){
 
     return file_contents;
 }
+
+#endif
