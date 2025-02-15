@@ -25,29 +25,29 @@ const float VOXEL_VERTICES[][3] = {
 };
 
 const int VOXEL_INDICES[][3] = {
-    {0, 1, 3}, // Back Face
-    {1, 2, 3},
+    {3, 1, 0}, // Back Face
+    {3, 2, 1},
     {4, 5, 7}, // Front Face
     {5, 6, 7},
-    {4, 5, 0}, // Right Face
-    {5, 1, 0},
+    {0, 5, 4}, // Right Face
+    {0, 1, 5},
     {7, 6, 3}, // Left Face
     {6, 2, 3},
     {0, 4, 7}, // Top Face
     {3, 0, 7},
-    {1, 5, 6}, // Bottom Face
-    {2, 1, 6}
+    {6, 5, 1}, // Bottom Face
+    {6, 1, 2}
 };
 
 const float VOXEL_COLORS[][3] = {
-   {1., 0., 0.},
-   {0., 1., 0.},
-   {0., 0., 1.},
-   {1., 1., 1.},
-   {.5, 0., 0.},
-   {0., .5, 0.},
-   {0., 0., .5},
-   {.5, .5, .5}
+    {1., 0., 0.},
+    {0., 1., 0.},
+    {0., 0., 1.},
+    {1., 1., 1.},
+    {.5, 0., 0.},
+    {0., .5, 0.},
+    {0., 0., .5},
+    {.5, .5, .5}
 };
 
 typedef enum Voxel {
@@ -124,11 +124,11 @@ BufferBundle createBuffers(Voxel *voxels, vec3 *voxel_colors, int voxel_count) {
     return bundle;
 }
 
-Chunk *createChunk() {
+Chunk *createChunk(ivec3 chunk_pos) {
     Chunk *chunk = malloc(sizeof(Chunk));
     if (chunk == NULL) { return NULL; }
 
-    glm_ivec3_copy((ivec3) {0, 0, 0}, chunk->chunk_pos);
+    glm_ivec3_copy(chunk_pos, chunk->chunk_pos);
 
     int voxel_count = CHUNK_SIZE * CHUNK_SIZE * CHUNK_SIZE;
     for (int i = 0; i < voxel_count; i++) {
@@ -139,11 +139,11 @@ Chunk *createChunk() {
     chunk->buffer_bundle = createBuffers(chunk->voxels, chunk->voxel_colors, voxel_count);
 
     glm_mat4_dup(GLM_MAT4_IDENTITY, chunk->model);
-    vec3 chunk_pos;
-    chunk_pos[0] = (float) chunk->chunk_pos[0] * CHUNK_SIZE;
-    chunk_pos[1] = (float) chunk->chunk_pos[1] * CHUNK_SIZE;
-    chunk_pos[2] = (float) chunk->chunk_pos[2] * CHUNK_SIZE;
-    glm_translate(chunk->model, chunk_pos);
+    vec3 chunk_translation;
+    chunk_translation[0] = (float) chunk->chunk_pos[0] * CHUNK_SIZE;
+    chunk_translation[1] = (float) chunk->chunk_pos[1] * CHUNK_SIZE;
+    chunk_translation[2] = (float) chunk->chunk_pos[2] * CHUNK_SIZE;
+    glm_translate(chunk->model, chunk_translation);
 
     return chunk;
 }

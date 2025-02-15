@@ -18,8 +18,8 @@
 #include <limits.h>
 
 
-unsigned int window_width = 500;
-unsigned int window_height = 500;
+unsigned int window_width = 1280;
+unsigned int window_height = 800;
 
 void makeWindowFullscreen(GLFWwindow *window) {
     GLFWmonitor *monitor = glfwGetPrimaryMonitor();
@@ -118,10 +118,9 @@ int main() {
     initialisePlayerCamera(window_width, window_height);
 
     // Create Chunk
-    Chunk *chunk = createChunk();
+    #define CHUNK_COUNT 5
+    Chunk *chunks[] = {createChunk((ivec3) {0, 0, 0}), createChunk((ivec3) {0, 0, 2}), createChunk((ivec3) {0, 0, -2}), createChunk((ivec3) {2, 0, 0}), createChunk((ivec3) {-2, 0, 0})};
 
-    mat4 model_1 = GLM_MAT4_IDENTITY_INIT;
-    
     float last = getTimeStamp();
     start_time = last;
 
@@ -134,20 +133,22 @@ int main() {
         // Process events
         glfwPollEvents();
         processInput(window, delta_time);
-        if (glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS) {printf("w");}
 
         clearWindow(window);
 
         // Apply uniforms and render
-        // Cube 1
-        model_pointer = &(chunk->model);
-        applyUniforms(&program_bundle);
-        render(window, program_bundle.programID, &(chunk->buffer_bundle));
+        for (int i = 0; i < CHUNK_COUNT; i++) {
+            model_pointer = &(chunks[i]->model);
+            applyUniforms(&program_bundle);
+            render(window, program_bundle.programID, &(chunks[i]->buffer_bundle));
+        }
         
         finishRender(window);
     }
 
-    free(chunk);
+
+    for (int i = 0; i < CHUNK_COUNT; i++) { free(chunks[i]); }
+
     glfwTerminate();
 
     return 0;

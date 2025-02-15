@@ -74,6 +74,7 @@ int setupOpenGL(unsigned int width, unsigned int height) {
     glClearColor(1., 0., 1., 1.);
     
     glEnable(GL_DEPTH_TEST);
+    glEnable(GL_CULL_FACE); 
 
     return 1;
 }
