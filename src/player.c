@@ -77,10 +77,10 @@ void cameraMovement(GLFWwindow *window, float delta_time) {
         glm_vec3_sub(movement , cam.right, movement);       
     }
     if (glfwGetKey(window, GLFW_KEY_SPACE) == GLFW_PRESS) { 
-        glm_vec3_add(movement, cam.up, movement);       
+        glm_vec3_add(movement, (vec3) {0., 1., 0.}, movement);       
     }
     if (glfwGetKey(window, GLFW_KEY_LEFT_CONTROL) == GLFW_PRESS) { 
-        glm_vec3_sub(movement , cam.up, movement);       
+        glm_vec3_sub(movement , (vec3) {0., 1., 0.}, movement);       
     }
 
     glm_vec3_scale(movement, delta_time * cam.speed, movement);
@@ -99,8 +99,6 @@ void initialisePlayerCamera(int window_width, int window_height) {
     
     glm_vec3_copy((vec3) {0., 0., -20.}, cam.pos);
     cameraRotate(0, 0);
-
-    printf("View Dir: (%f, %f, %f)\n", cam.dir[0], cam.dir[1], cam.dir[2]);
 
     calculateProjection(window_width, window_height);
 }

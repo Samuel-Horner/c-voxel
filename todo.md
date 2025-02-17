@@ -1,4 +1,3 @@
-1. Include GLM
-2. Use GLM to set up model / view / transform matrices
-3. Create a mesh struct with a VertexArray, IndexArray, Model, Transform, BufferBundle, *ProgramBundle
-4. Create a generic render function to render n meshes
+1. Finish implementing the vector struct
+2. Write an actual meshing algorithm for the chunk struct
+    1. Using some voxel struct as well

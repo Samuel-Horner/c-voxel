@@ -9,6 +9,7 @@
 #include "shader.c"
 #include "player.c"
 #include "chunk.c"
+#include "vector.c"
 
 #include <stdlib.h>
 #include <stdio.h>
@@ -80,6 +81,9 @@ void processInput(GLFWwindow *window, float delta_time) {
         f_11_down = 1;
     }
     else if (glfwGetKey(window, GLFW_KEY_F11) != GLFW_PRESS) { f_11_down = 0; }
+
+    if (glfwGetKey(window, GLFW_KEY_Q) == GLFW_PRESS) { glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);} 
+    else { glPolygonMode(GL_FRONT_AND_BACK, GL_FILL); }
 
     cameraMovement(window, delta_time);
 }
