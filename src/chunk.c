@@ -106,7 +106,7 @@ BufferBundle createBuffers(Voxel *voxels, vec3 *voxel_colors, int voxel_count) {
     }
 
     unsigned int vertex_split[2] = {3, 3};
-    bundle = createVAO(vertices, indices, 6, 2, vertex_split);
+    bundle = createVAO(vertices, indices, 6, 2, vertex_split, GL_STATIC_DRAW);
     
     return bundle;
 }

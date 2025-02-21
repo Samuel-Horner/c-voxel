@@ -139,7 +139,7 @@ int bindUniforms(ProgramBundle *program, char **uniform_names, UniformFunction *
     return 0;
 }
 
-BufferBundle createVAO(VertexArray vertices, IndexArray indices, unsigned int values_per_vertex, unsigned int value_count, unsigned int *value_split) {
+BufferBundle createVAO(VertexArray vertices, IndexArray indices, unsigned int values_per_vertex, unsigned int value_count, unsigned int *value_split, unsigned int draw_mode) {
     BufferBundle bundle;
     glGenVertexArrays(1, &bundle.VAO);
     glGenBuffers(1, &bundle.VBO);
@@ -148,10 +148,10 @@ BufferBundle createVAO(VertexArray vertices, IndexArray indices, unsigned int va
     glBindVertexArray(bundle.VAO);
 
     glBindBuffer(GL_ARRAY_BUFFER, bundle.VBO);
-    glBufferData(GL_ARRAY_BUFFER, sizeof(float) * vertices.size, vertices.values, GL_STATIC_DRAW);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(float) * vertices.size, vertices.values, draw_mode);
 
     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, bundle.EBO);
-    glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(unsigned int) * indices.size, indices.values, GL_STATIC_DRAW);
+    glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(unsigned int) * indices.size, indices.values, draw_mode);
 
     unsigned int stride = values_per_vertex * sizeof(float);
     unsigned int offset = 0;
@@ -177,8 +177,9 @@ void clearWindow(GLFWwindow *window) {
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 }
 
-void render(GLFWwindow *window, unsigned int program, BufferBundle *buffer) {
-    glUseProgram(program);
+void render(GLFWwindow *window, ProgramBundle *program, BufferBundle *buffer) {
+    glUseProgram(program->programID);
+    applyUniforms(program);
     glBindVertexArray(buffer->VAO);
     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, buffer->EBO);
 

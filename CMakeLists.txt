@@ -19,6 +19,8 @@ FetchContent_Declare(
 
 FetchContent_MakeAvailable(cglm)
 
+find_package(Freetype REQUIRED)
+
 add_executable(c_voxel 
     src/main.c
     src/glad/gl.h
@@ -29,4 +31,9 @@ target_link_libraries(c_voxel
     m
     glfw
     cglm
+    ${FREETYPE_LIBRARIES}
+)
+
+target_include_directories(c_voxel PRIVATE
+    ${FREETYPE_INCLUDE_DIRS}
 )

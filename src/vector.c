@@ -105,38 +105,58 @@ int vectorPop (Vector *vector, void *dest) {
     return 1;
 }
 
-void vectorFree (Vector *vector) {
-    free(vector->vals);
-    free(vector);
+int vectorConcat(Vector *v, Vector *dest) {
+    if (v->item_size != dest->item_size) { 
+        printf("ERROR: Attempted to concat incompatable vector types.\n");
+        return 0; 
+    }
+
+    while (dest->capacity - dest->size < v->size) {
+        if (!vectorGrow(dest)) { 
+            printf("ERROR: Cannot grow destination vector.\n");
+            return 0; 
+        }
+    }
+
+    memcpy(dest->vals + (dest->size * dest->item_size), v->vals, v->item_size *  v->size);
+    dest->size += v->size;
+
+    return 1;
 }
 
-Vector *vectorInit (size_t item_size, size_t initial_capacity) {
-    Vector *vector = malloc(sizeof(Vector));
-    if (vector == NULL) { return NULL; }
-    vector->capacity = initial_capacity;
-    vector->item_size = item_size;
-    vector->size = 0;
-    if (!vectorAllocate(vector)) { return NULL; }
+void vectorFree (Vector *vector) {
+    free(vector->vals);
+    // free(vector); // For some reason this causes a double free, even with the above line commeneted out?
+}
+
+Vector vectorInit (size_t item_size, size_t initial_capacity) {
+    Vector vector;
+    vector.capacity = initial_capacity;
+    vector.item_size = item_size;
+    vector.size = 0;
+    if (!vectorAllocate(&vector)) { 
+        printf("ERROR: Failed to allocated space for vector\n");
+        exit(1);
+    }
     return vector;
 }
 
-Vector *vectorFromArray(size_t item_size, size_t array_size, void *array) {
-    Vector *vector = vectorInit(item_size, array_size);
-    if (vector == NULL) { return NULL; }
+Vector vectorFromArray(size_t item_size, size_t array_size, void *array) {
+    Vector vector = vectorInit(item_size, array_size);
 
-    memcpy(vector->vals, array, array_size * item_size);
-    vector->size = array_size;
+    memcpy(vector.vals, array, array_size * item_size);
+    vector.size = array_size;
 
     return vector;
 }
 
 #define printVector(type, format, vector) do { \
     printf("{"); \
-    for (size_t i = 0; i < vector->size; i++) { \
-        printf(format, *((type *) vectorIndex(vector, i))); \
-        if (i < vector->size - 1) { printf(", "); } \
+    for (size_t i = 0; i < vector.size; i++) { \
+        printf(format, *((type *) vectorIndex(&vector, i))); \
+        if (i < vector.size - 1) { printf(", "); } \
     } \
-    printf("} Size: %zu, Capacity: %zu\n", vector->size, vector->capacity); \
+    printf("} Size: %zu, Capacity: %zu\n", vector.size, vector.capacity); \
 } while(0)
 
 #endif

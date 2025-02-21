@@ -83,12 +83,13 @@ void cameraMovement(GLFWwindow *window, float delta_time) {
         glm_vec3_sub(movement , (vec3) {0., 1., 0.}, movement);       
     }
 
+    glm_vec3_normalize(movement);
     glm_vec3_scale(movement, delta_time * cam.speed, movement);
     glm_vec3_add(cam.pos, movement, cam.pos);
 }
 
 void calculateProjection(int window_width, int window_height) {
-    glm_perspective(glm_rad(45.), (float) window_width / (float) window_height, .1, 100., cam.projection);
+    glm_perspective(glm_rad(45.), (float) window_width / (float) window_height, .1, 1000., cam.projection);
 }
 
 void initialisePlayerCamera(int window_width, int window_height) {
@@ -97,7 +98,7 @@ void initialisePlayerCamera(int window_width, int window_height) {
     cam.pitch = 0;
     cam.yaw = 90; // Start looking in pos_z dir
     
-    glm_vec3_copy((vec3) {0., 0., -20.}, cam.pos);
+    glm_vec3_copy((vec3) {0., 0., 0.}, cam.pos);
     cameraRotate(0, 0);
 
     calculateProjection(window_width, window_height);

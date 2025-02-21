@@ -10,6 +10,7 @@
 #include "player.c"
 #include "chunk.c"
 #include "vector.c"
+#include "text.c"
 
 #include <stdlib.h>
 #include <stdio.h>
@@ -66,6 +67,7 @@ void framebufferSizeCallback(GLFWwindow* window, int width, int height){
     window_height = height;
     glViewport(0, 0, width, height);
     calculateProjection(width, height);
+    updateTextProjection(width, height);
     printf("Window resized to: %dx%d\n", width, height);
 }
 
@@ -101,29 +103,45 @@ int main() {
     glfwSetFramebufferSizeCallback(window, framebufferSizeCallback);
     glfwSetCursorPosCallback(window, cursorPositionCallback);
 
-    // Fetch vertex and fragment source
-    char *vertex_source = getShaderSource("./src/shaders/basic.vert");
-    if (vertex_source == NULL) { printf("Error fecthing vertex shader.\n"); return -1; }
+    // Initlialise Font Stuff
+    initFreeType();
+    initFreeTypeFace("./fonts/JetBrainsMonoNerdFont-Regular.ttf", window_width, window_height);
+    generateFreeTypeTexture();
 
-    char *fragment_source = getShaderSource("./src/shaders/basic.frag");
-    if (fragment_source == NULL) { printf("Error fecthing fragment shader.\n"); return -1; }
+    ProgramBundle text_program = createTextProgram(window_width, window_height);
+    BufferBundle text_buffer_bundle = createTextBuffer();
+
+    // Fetch vertex and fragment source
+    char *chunk_vertex_source = getShaderSource("./src/shaders/basic_vert.glsl");
+    if (chunk_vertex_source == NULL) { printf("Error fecthing vertex shader.\n"); return -1; }
+
+    char *chunk_fragment_source = getShaderSource("./src/shaders/basic_frag.glsl");
+    if (chunk_fragment_source == NULL) { printf("Error fecthing fragment shader.\n"); return -1; }
 
     // Create program bundle
-    ProgramBundle program_bundle = createProgram(vertex_source, fragment_source);
+    ProgramBundle chunk_program = createProgram(chunk_vertex_source, chunk_fragment_source);
 
     // Bind uniforms
     #define UNIFORM_COUNT 5
     char *uniform_names[UNIFORM_COUNT] = {"resolution", "time", "model", "view", "projection"};
     UniformFunction uniform_funcs[UNIFORM_COUNT] = {resolutionFunction, timeFunction, modelFunction, viewFunction, projectionFunction};
-    bindUniforms(&program_bundle, uniform_names, uniform_funcs, UNIFORM_COUNT);
+    bindUniforms(&chunk_program, uniform_names, uniform_funcs, UNIFORM_COUNT);
 
- 
     // Initlialise Camera
     initialisePlayerCamera(window_width, window_height);
 
     // Create Chunk
-    #define CHUNK_COUNT 5
-    Chunk *chunks[] = {createChunk((ivec3) {0, 0, 0}), createChunk((ivec3) {0, 0, 2}), createChunk((ivec3) {0, 0, -2}), createChunk((ivec3) {2, 0, 0}), createChunk((ivec3) {-2, 0, 0})};
+    Vector chunks = vectorInit(sizeof(Chunk), 1);
+
+    // #define CHUNK_COUNT 1
+    // for (int x = -CHUNK_COUNT; x <= CHUNK_COUNT; x++) {
+    //     for (int z = -CHUNK_COUNT; z <= CHUNK_COUNT; z++) {
+    //         vectorPush(&chunks, createChunk((ivec3) {x, 0, z}));
+    //         printf("Created chunk at (%d, 0, %d)\n", x, z);
+    //     }
+    // }
+
+    vectorPush(&chunks, createChunk((ivec3) {0, 0, 0}));
 
     float last = getTimeStamp();
     start_time = last;
@@ -141,17 +159,21 @@ int main() {
         clearWindow(window);
 
         // Apply uniforms and render
-        for (int i = 0; i < CHUNK_COUNT; i++) {
-            model_pointer = &(chunks[i]->model);
-            applyUniforms(&program_bundle);
-            render(window, program_bundle.programID, &(chunks[i]->buffer_bundle));
+        for (int i = 0; i < chunks.size; i++) {
+            Chunk *chunk = vectorIndex(&chunks, i);
+            model_pointer = &(chunk->model);
+            render(window, &chunk_program, &(chunk->buffer_bundle));
         }
         
+        char *debug_string;
+        if(!asprintf(&debug_string, "FPS: %.3f POS: (%.3f, %.3f, %.3f)", 1. / delta_time, cam.pos[0], cam.pos[1], cam.pos[2])) { printf("ERROR: Error creating fps string!\n"); return -1; }
+        renderText(&text_buffer_bundle, &text_program, debug_string, (vec2) {10, 10}, 0.15);
+        free(debug_string);
+
         finishRender(window);
     }
 
-
-    for (int i = 0; i < CHUNK_COUNT; i++) { free(chunks[i]); }
+    vectorFree(&chunks);
 
     glfwTerminate();
 
