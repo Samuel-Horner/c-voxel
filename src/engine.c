@@ -167,6 +167,11 @@ BufferBundle createVAO(VertexArray vertices, IndexArray indices, unsigned int va
     return bundle;
 }
 
+void updateBuffer(GLenum buffer_type, unsigned int buffer_id, void *data, size_t data_size, size_t data_length) {
+    glBindBuffer(buffer_type, buffer_id);
+    glBufferSubData(buffer_type, 0, data_size * data_length, data);
+}
+
 void applyUniforms(ProgramBundle *program) {
     for (unsigned int i = 0; i < program->uniforms.size; i++){
         program->uniforms.values[i].func(program->uniforms.values[i].location);

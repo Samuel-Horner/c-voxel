@@ -6,11 +6,9 @@
 #include <GLFW/glfw3.h>
 
 #include "engine.c"
-#include "shader.c"
 #include "player.c"
-#include "chunk.c"
-#include "vector.c"
 #include "text.c"
+#include "world.c"
 
 #include <stdlib.h>
 #include <stdio.h>
@@ -18,6 +16,7 @@
 #include <time.h>
 #include <unistd.h>
 #include <limits.h>
+#include <sys/resource.h>
 
 
 unsigned int window_width = 1280;
@@ -43,22 +42,6 @@ float getTimeStamp() {
     }
 
     return (float) spec.tv_sec + spec.tv_nsec / 1.0e9;
-}
-
-void resolutionFunction(unsigned int location){
-    glUniform2f(location, (float) window_width, (float) window_height);
-}
-
-float start_time;
-void timeFunction(unsigned int location){
-    glUniform1f(location, getTimeStamp() - start_time);
-}
-
-// Model Stuff
-mat4 *model_pointer = NULL;
-void modelFunction(unsigned int location){
-    if (model_pointer == NULL) { printf("ERROR: Attempted to render with NULL model pointer\n"); return; }
-    glUniformMatrix4fv(location, 1, GL_FALSE, (float *) *model_pointer);
 }
 
 // Call Backs
@@ -88,6 +71,13 @@ void processInput(GLFWwindow *window, float delta_time) {
     else { glPolygonMode(GL_FRONT_AND_BACK, GL_FILL); }
 
     cameraMovement(window, delta_time);
+}
+
+// Model Stuff
+mat4 *model_pointer = NULL;
+void modelFunction(unsigned int location){
+    if (model_pointer == NULL) { printf("ERROR: Attempted to render with NULL model pointer\n"); return; }
+    glUniformMatrix4fv(location, 1, GL_FALSE, (float *) *model_pointer);
 }
 
 int main() {
@@ -122,29 +112,19 @@ int main() {
     ProgramBundle chunk_program = createProgram(chunk_vertex_source, chunk_fragment_source);
 
     // Bind uniforms
-    #define UNIFORM_COUNT 5
-    char *uniform_names[UNIFORM_COUNT] = {"resolution", "time", "model", "view", "projection"};
-    UniformFunction uniform_funcs[UNIFORM_COUNT] = {resolutionFunction, timeFunction, modelFunction, viewFunction, projectionFunction};
+    #define UNIFORM_COUNT 3
+    char *uniform_names[UNIFORM_COUNT] = {"model", "view", "projection"};
+    UniformFunction uniform_funcs[UNIFORM_COUNT] = {modelFunction, viewFunction, projectionFunction};
     bindUniforms(&chunk_program, uniform_names, uniform_funcs, UNIFORM_COUNT);
 
     // Initlialise Camera
     initialisePlayerCamera(window_width, window_height);
 
-    // Create Chunk
-    Vector chunks = vectorInit(sizeof(Chunk), 1);
-
-    // #define CHUNK_COUNT 1
-    // for (int x = -CHUNK_COUNT; x <= CHUNK_COUNT; x++) {
-    //     for (int z = -CHUNK_COUNT; z <= CHUNK_COUNT; z++) {
-    //         vectorPush(&chunks, createChunk((ivec3) {x, 0, z}));
-    //         printf("Created chunk at (%d, 0, %d)\n", x, z);
-    //     }
-    // }
-
-    vectorPush(&chunks, createChunk((ivec3) {0, 0, 0}));
+    World world = createWorld(1, (ivec2) {0, 0});
 
     float last = getTimeStamp();
-    start_time = last;
+
+    struct rusage r_usage;
 
     while(!glfwWindowShouldClose(window)){
         // Calculate delta time
@@ -155,26 +135,21 @@ int main() {
         // Process events
         glfwPollEvents();
         processInput(window, delta_time);
-
         clearWindow(window);
 
         // Apply uniforms and render
-        for (int i = 0; i < chunks.size; i++) {
-            Chunk *chunk = vectorIndex(&chunks, i);
-            model_pointer = &(chunk->model);
-            render(window, &chunk_program, &(chunk->buffer_bundle));
-        }
+        renderWorld(&world, &chunk_program, &model_pointer, window);
         
+        getrusage(RUSAGE_SELF, &r_usage);
         char *debug_string;
-        if(!asprintf(&debug_string, "FPS: %.3f POS: (%.3f, %.3f, %.3f)", 1. / delta_time, cam.pos[0], cam.pos[1], cam.pos[2])) { printf("ERROR: Error creating fps string!\n"); return -1; }
+        if(!asprintf(&debug_string, "FPS: %.3f MEM: %.3fMB POS: (%.3f, %.3f, %.3f) C: %zu", 1. / delta_time, r_usage.ru_maxrss / 1048576., cam.pos[0], cam.pos[1], cam.pos[2], world.chunks.size)) { printf("ERROR: Error creating debug string!\n"); return -1; }
         renderText(&text_buffer_bundle, &text_program, debug_string, (vec2) {10, 10}, 0.15);
         free(debug_string);
 
         finishRender(window);
     }
 
-    vectorFree(&chunks);
-
+    vectorFree(&world.chunks);
     glfwTerminate();
 
     return 0;

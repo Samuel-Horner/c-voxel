@@ -2,8 +2,6 @@
 #define TEXT
 
 #include "cglm/vec3.h"
-#include "chunk.c"
-#include "vector.c"
 #include "engine.c"
 #include "shader.c"
 
@@ -158,7 +156,7 @@ BufferBundle createTextBuffer() {
     return bundle;
 }
 
-#define CHAR_WIDTH_SCALE 0.75
+#define CHAR_WIDTH_SCALE 0.65
 
 void renderText(BufferBundle *bundle, ProgramBundle *program, char *text, vec2 pos, float scale) {
     glEnable(GL_BLEND);

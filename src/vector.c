@@ -14,7 +14,7 @@ typedef struct Vector {
     size_t capacity;
 } Vector;
 
-int vectorAllocate (Vector *vector) {
+int vectorAllocate(Vector *vector) {
     void *new_vals = malloc(vector->capacity * vector->item_size);
     if (new_vals == NULL) { return 0; }
 
@@ -22,7 +22,7 @@ int vectorAllocate (Vector *vector) {
     return 1;
 }
 
-int vectorGrow (Vector *vector) {
+int vectorGrow(Vector *vector) {
     void *vals = vector->vals;
     
     vector->capacity *= GROWTH_FACTOR;
@@ -36,7 +36,7 @@ int vectorGrow (Vector *vector) {
     return 1;
 }
 
-int vectorShrink (Vector *vector) {
+int vectorShrink(Vector *vector) {
     void *vals = vector->vals;
     
     vector->capacity /= GROWTH_FACTOR;
@@ -51,12 +51,12 @@ int vectorShrink (Vector *vector) {
     return 1;
 }
 
-void *vectorIndex (Vector *vector, size_t index) {
+void *vectorIndex(Vector *vector, size_t index) {
     if (index >= vector->size) { return NULL; }
     return vector->vals + index * vector->item_size;
 }
 
-int vectorPush (Vector *vector, void *item) {
+int vectorPush(Vector *vector, void *item) {
     vector->size++;
     
     if (vector->size > vector->capacity) {
@@ -67,7 +67,18 @@ int vectorPush (Vector *vector, void *item) {
     return 1;
 }
 
-int vectorPopIndex (Vector *vector, void *dest, size_t index) {
+int vectorPushArray(Vector *vector, void *array, size_t array_size) {
+    vector->size += array_size;
+
+    if (vector->size > vector->capacity) {
+        if (!vectorGrow(vector)) { vector->size -= array_size; return 0; }
+    }
+
+    memcpy(vectorIndex(vector, vector->size - array_size), array, vector->item_size * array_size);
+    return 1;
+}
+
+int vectorPopIndex(Vector *vector, void *dest, size_t index) {
     if (vector->size == 0) { return 0; }
     void *item = vectorIndex(vector, index);
     void *vals = vector->vals;
@@ -91,11 +102,14 @@ int vectorPopIndex (Vector *vector, void *dest, size_t index) {
     return 1;
 }
 
-int vectorPop (Vector *vector, void *dest) {
+int vectorPop(Vector *vector, void *dest) {
     if (vector->size == 0) { return 0; }
-    void *top = vectorIndex(vector, vector->size - 1);
-    if (dest != NULL) { memcpy(dest, top, vector->item_size); }
+    // void *top = vectorIndex(vector, vector->size - 1);
+    void *top = vector->vals + (vector->size - 1) * vector->item_size;
+    if (dest == NULL || top == NULL) { return 0; } 
     
+    // printf("%p (%p) to %p\n", top, vectorIndex(vector, vector->size - 1), dest);
+    memcpy(dest, top, vector->item_size);
     vector->size--;
 
     if (vector->size < vector->capacity / GROWTH_FACTOR) {
@@ -124,12 +138,12 @@ int vectorConcat(Vector *v, Vector *dest) {
     return 1;
 }
 
-void vectorFree (Vector *vector) {
+void vectorFree(Vector *vector) {
+    if (vector->vals == NULL) { return; }
     free(vector->vals);
-    // free(vector); // For some reason this causes a double free, even with the above line commeneted out?
 }
 
-Vector vectorInit (size_t item_size, size_t initial_capacity) {
+Vector vectorInit(size_t item_size, size_t initial_capacity) {
     Vector vector;
     vector.capacity = initial_capacity;
     vector.item_size = item_size;
