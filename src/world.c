@@ -13,10 +13,11 @@
 typedef struct World {
     Vector chunks;
     int render_distance;
+    int world_height;
     ivec2 centre_pos;
 } World;
 
-#define worldSize(world) (world.render_distance * world.render_distance)
+#define worldSize(world) (world.render_distance * world.render_distance * world.world_height)
 
 void renderWorld(World *world, ProgramBundle *chunk_program, mat4 **model_pointer, GLFWwindow *window) {
     for (int i = 0; i < world->chunks.size; i++) {
@@ -28,15 +29,18 @@ void renderWorld(World *world, ProgramBundle *chunk_program, mat4 **model_pointe
 
 void populateWorld(World *world) {
     for (int x = 0; x <= world->render_distance * 2; x++) {
-        for (int z = 0; z <= world->render_distance * 2; z++) {
-            vectorPush(&world->chunks, createChunk((ivec3) {world->centre_pos[0] + x - world->render_distance, 0, world->centre_pos[1] + z - world->render_distance}));
+        for (int y = 0; y < world->world_height; y++) {
+            for (int z = 0; z <= world->render_distance * 2; z++) {
+                vectorPushFree(&world->chunks, createChunk((ivec3) {world->centre_pos[0] + x - world->render_distance, y, world->centre_pos[1] + z - world->render_distance}));
+            }
         }
     }
 }
 
-World createWorld(int render_distance, ivec2 chunk_pos) {
+World createWorld(int render_distance, int world_height, ivec2 chunk_pos) {
     World world;
     world.render_distance = render_distance;
+    world.world_height = world_height;
     world.chunks = vectorInit(sizeof(Chunk), worldSize(world));
     glm_ivec2_copy(chunk_pos, world.centre_pos);
 

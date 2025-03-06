@@ -133,6 +133,8 @@ ProgramBundle createTextProgram(int window_width, int window_height) {
 
     // Create program bundle
     ProgramBundle text_program = createProgram(text_vertex_source, text_fragment_source);
+    free(text_vertex_source);
+    free(text_fragment_source);
  
     // Initialise orthographic projection
     updateTextProjection(window_width, window_height);
@@ -151,7 +153,7 @@ BufferBundle createTextBuffer() {
     IndexArray indices = { .size = 6, .values = text_quad_indices};
 
     unsigned int value_split[] = {4};
-    BufferBundle bundle = createVAO(verts, indices, 4, 1, value_split, GL_DYNAMIC_DRAW);
+    BufferBundle bundle = createVAO(verts, indices, 4, 1, value_split, GL_DYNAMIC_DRAW, 1);
 
     return bundle;
 }

@@ -1,3 +1,3 @@
-1. Finish implementing the vector struct
-2. Write an actual meshing algorithm for the chunk struct
-    1. Using some voxel struct as well
+1. Make face culling algorithm
+2. Adapt chunks to use 
+3. Use voxel packing and SSBOs for one vertex per voxel

@@ -64,6 +64,8 @@ void projectionFunction(unsigned int location){
 void cameraMovement(GLFWwindow *window, float delta_time) {
     vec3 movement = GLM_VEC3_ZERO_INIT;
     vec3 inverse_movement = GLM_VEC3_ZERO_INIT;
+    float speed = cam.speed;
+
     if (glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS) { 
         glm_vec3_add(movement, cam.dir, movement);       
     } 
@@ -78,13 +80,16 @@ void cameraMovement(GLFWwindow *window, float delta_time) {
     }
     if (glfwGetKey(window, GLFW_KEY_SPACE) == GLFW_PRESS) { 
         glm_vec3_add(movement, (vec3) {0., 1., 0.}, movement);       
-    }
+    } 
     if (glfwGetKey(window, GLFW_KEY_LEFT_CONTROL) == GLFW_PRESS) { 
         glm_vec3_sub(movement , (vec3) {0., 1., 0.}, movement);       
     }
+    if (glfwGetKey(window, GLFW_KEY_LEFT_SHIFT) == GLFW_PRESS) {
+        speed *= 4;
+    }
 
     glm_vec3_normalize(movement);
-    glm_vec3_scale(movement, delta_time * cam.speed, movement);
+    glm_vec3_scale(movement, delta_time * speed, movement);
     glm_vec3_add(cam.pos, movement, cam.pos);
 }
 

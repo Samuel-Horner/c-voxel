@@ -37,3 +37,9 @@ target_link_libraries(c_voxel
 target_include_directories(c_voxel PRIVATE
     ${FREETYPE_INCLUDE_DIRS}
 )
+
+# Testing
+set(MEMORYCHECK_COMMAND_OPTIONS "--leak-check=full --error-exitcode=1 --errors-for-leak-kinds=definite --tool=memcheck --show-leak-kinds=definite")
+include(CTest)
+add_test(NAME c_voxel COMMAND c_voxel 
+    WORKING_DIRECTORY ${CMAKE_CURRENT_LIST_DIR})

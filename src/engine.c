@@ -139,7 +139,7 @@ int bindUniforms(ProgramBundle *program, char **uniform_names, UniformFunction *
     return 0;
 }
 
-BufferBundle createVAO(VertexArray vertices, IndexArray indices, unsigned int values_per_vertex, unsigned int value_count, unsigned int *value_split, unsigned int draw_mode) {
+BufferBundle createVAO(VertexArray vertices, IndexArray indices, unsigned int values_per_vertex, unsigned int value_count, unsigned int *value_split, unsigned int draw_mode, int verbose) {
     BufferBundle bundle;
     glGenVertexArrays(1, &bundle.VAO);
     glGenBuffers(1, &bundle.VBO);
@@ -157,7 +157,7 @@ BufferBundle createVAO(VertexArray vertices, IndexArray indices, unsigned int va
     unsigned int offset = 0;
     for (unsigned int i = 0; i < value_count; i++) {
         glVertexAttribPointer(i, value_split[i], GL_FLOAT, GL_FALSE, stride, (const void *) (offset * sizeof(float)));
-        printf("Created vertex attribute pointer {location:%d, stride:%d, offset:%p}\n", i, stride, (const void *) (offset * sizeof(float)));
+        if (verbose) { printf("Created vertex attribute pointer {location:%d, stride:%d, offset:%p}\n", i, stride, (const void *) (offset * sizeof(float))); }
         glEnableVertexAttribArray(i);
         offset += value_split[i];
     }
@@ -191,8 +191,12 @@ void render(GLFWwindow *window, ProgramBundle *program, BufferBundle *buffer) {
     glDrawElements(GL_TRIANGLES, buffer->length, GL_UNSIGNED_INT, 0);
 }
 
-void finishRender(GLFWwindow *window){
+void finishRender(GLFWwindow *window) {
     glfwSwapBuffers(window);
+}
+
+void freeProgram(ProgramBundle *program) {
+    free(program->uniforms.values);
 }
 
 #endif

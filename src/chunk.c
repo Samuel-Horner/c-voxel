@@ -76,7 +76,7 @@ BufferBundle createBuffers(Voxel *voxels, vec3 *voxel_colors, int voxel_count) {
     indices.values = NULL;
     
     unsigned int vertex_split[2] = {3, 3};
-    bundle = createVAO(vertices, indices, 6, 2, vertex_split, GL_DYNAMIC_DRAW);
+    bundle = createVAO(vertices, indices, VALS_PER_VERT, 2, vertex_split, GL_DYNAMIC_DRAW, 0);
     
     return bundle;
 }
@@ -124,6 +124,9 @@ void createChunkMesh(Chunk *chunk) {
     updateBuffer(GL_ARRAY_BUFFER, chunk->buffer_bundle.VBO, verts.vals, verts.item_size, verts.size);
     updateBuffer(GL_ELEMENT_ARRAY_BUFFER, chunk->buffer_bundle.EBO, indices.vals, indices.item_size, indices.size);
     chunk->buffer_bundle.length = indices.size;
+
+    freeVector(&verts);
+    freeVector(&indices);
 }
 
 Chunk *createChunk(ivec3 chunk_pos) {
@@ -146,8 +149,6 @@ Chunk *createChunk(ivec3 chunk_pos) {
     chunk_translation[1] = (float) chunk->chunk_pos[1] * CHUNK_SIZE;
     chunk_translation[2] = (float) chunk->chunk_pos[2] * CHUNK_SIZE;
     glm_translate(chunk->model, chunk_translation);
-
-    printf("Created new chunk model matrix at %p\n", &(chunk->model));
 
     return chunk;
 }

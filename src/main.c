@@ -86,6 +86,8 @@ int main() {
     if (getcwd(cwd, sizeof(cwd)) != NULL) { printf("Current working dir: %s\n", cwd); }
     else { printf("Couldnt fetch CWD."); return -1; }
 
+    // return 0;
+
     // Initialise window and glsl
     GLFWwindow* window = initialiseWindow(window_width, window_height);
     if (window == NULL) { return -1; }
@@ -110,6 +112,8 @@ int main() {
 
     // Create program bundle
     ProgramBundle chunk_program = createProgram(chunk_vertex_source, chunk_fragment_source);
+    free(chunk_vertex_source);
+    free(chunk_fragment_source);
 
     // Bind uniforms
     #define UNIFORM_COUNT 3
@@ -120,7 +124,7 @@ int main() {
     // Initlialise Camera
     initialisePlayerCamera(window_width, window_height);
 
-    World world = createWorld(1, (ivec2) {0, 0});
+    World world = createWorld(1, 1, (ivec2) {0, 0});
 
     float last = getTimeStamp();
 
@@ -149,7 +153,9 @@ int main() {
         finishRender(window);
     }
 
-    vectorFree(&world.chunks);
+    freeVector(&world.chunks);
+    freeProgram(&text_program);
+    freeProgram(&chunk_program);
     glfwTerminate();
 
     return 0;
