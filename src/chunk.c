@@ -60,12 +60,12 @@ typedef enum Voxel {
 typedef struct Chunk {
     ivec3 chunk_pos;
     Voxel voxels[CHUNK_SIZE * CHUNK_SIZE * CHUNK_SIZE];
-    BufferBundle buffer_bundle;
+    VertexBufferBundle buffer_bundle;
     mat4 model;
 } Chunk;
 
-BufferBundle createBuffers(Voxel *voxels, vec3 *voxel_colors, int voxel_count) {
-    BufferBundle bundle;
+VertexBufferBundle createBuffers(Voxel *voxels, vec3 *voxel_colors, int voxel_count) {
+    VertexBufferBundle bundle;
 
     VertexArray vertices;
     vertices.size = voxel_count * VERTS_PER_VOXEL * VALS_PER_VERT;
@@ -76,7 +76,7 @@ BufferBundle createBuffers(Voxel *voxels, vec3 *voxel_colors, int voxel_count) {
     indices.values = NULL;
     
     unsigned int vertex_split[2] = {3, 3};
-    bundle = createVAO(vertices, indices, VALS_PER_VERT, 2, vertex_split, GL_DYNAMIC_DRAW, 0);
+    bundle = createVertexBufferBundle(vertices, indices, VALS_PER_VERT, 2, vertex_split, GL_DYNAMIC_DRAW, 0);
     
     return bundle;
 }

@@ -148,19 +148,19 @@ ProgramBundle createTextProgram(int window_width, int window_height) {
     return text_program;
 }
 
-BufferBundle createTextBuffer() {
+VertexBufferBundle createTextBuffer() {
     VertexArray verts = { .size = 4 * 4, .values = NULL };
     IndexArray indices = { .size = 6, .values = text_quad_indices};
 
     unsigned int value_split[] = {4};
-    BufferBundle bundle = createVAO(verts, indices, 4, 1, value_split, GL_DYNAMIC_DRAW, 1);
+    VertexBufferBundle bundle = createVertexBufferBundle(verts, indices, 4, 1, value_split, GL_DYNAMIC_DRAW, 1);
 
     return bundle;
 }
 
 #define CHAR_WIDTH_SCALE 0.65
 
-void renderText(BufferBundle *bundle, ProgramBundle *program, char *text, vec2 pos, float scale) {
+void renderText(VertexBufferBundle *bundle, ProgramBundle *program, char *text, vec2 pos, float scale) {
     glEnable(GL_BLEND);
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 

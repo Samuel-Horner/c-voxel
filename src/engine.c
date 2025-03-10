@@ -7,22 +7,23 @@
 #include <GLFW/glfw3.h>
 #include <stdlib.h>
 
-typedef struct VertexArray {
+
+typedef struct {
     float *values;
     unsigned int size;
 } VertexArray;
 
-typedef struct IndexArray {
+typedef struct {
     int *values;
     unsigned int size;
 } IndexArray;
 
-typedef struct BufferBundle {
+typedef struct {
     unsigned int VAO;
     unsigned int VBO;
     unsigned int EBO;
     unsigned int length;
-} BufferBundle;
+} VertexBufferBundle;
 
 typedef void (*UniformFunction)(unsigned int programID); 
 
@@ -31,12 +32,20 @@ typedef struct UniformBundle {
     UniformFunction func;
 } UniformBundle;
 
+struct UniformArray {
+    UniformBundle *values;
+    unsigned int size;
+};
+
+typedef struct {
+    unsigned int UBO;
+    struct UniformArray uniforms;
+    unsigned int length;
+} UniformBufferBundle;
+
 typedef struct ProgramBundle {
     unsigned int programID;
-    struct {
-        UniformBundle *values;
-        unsigned int size;
-    } uniforms;
+    struct UniformArray uniforms;
 } ProgramBundle;
 
 GLFWwindow* initialiseWindow(unsigned int width, unsigned int height) {
@@ -139,8 +148,8 @@ int bindUniforms(ProgramBundle *program, char **uniform_names, UniformFunction *
     return 0;
 }
 
-BufferBundle createVAO(VertexArray vertices, IndexArray indices, unsigned int values_per_vertex, unsigned int value_count, unsigned int *value_split, unsigned int draw_mode, int verbose) {
-    BufferBundle bundle;
+VertexBufferBundle createVertexBufferBundle(VertexArray vertices, IndexArray indices, unsigned int values_per_vertex, unsigned int value_count, unsigned int *value_split, unsigned int draw_mode, int verbose) {
+    VertexBufferBundle bundle;
     glGenVertexArrays(1, &bundle.VAO);
     glGenBuffers(1, &bundle.VBO);
     glGenBuffers(1, &bundle.EBO);
@@ -178,11 +187,24 @@ void applyUniforms(ProgramBundle *program) {
     }
 }
 
+UniformBufferBundle createUniformBufferBundle(UniformFunction *uniform_funcs, unsigned int *uniform_sizes, unsigned int uniform_count, int verbose) {
+    // https://learnopengl.com/Advanced-OpenGL/Advanced-GLSL
+    // See uniform buffers
+    UniformBufferBundle bundle;
+    
+    // DO SOME MAGIC!
+
+    return bundle;
+}
+
+// Assign to things shader program
+void bindUniformBufferBundle(ProgramBundle *program, char *name) {}
+
 void clearWindow(GLFWwindow *window) {
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 }
 
-void render(GLFWwindow *window, ProgramBundle *program, BufferBundle *buffer) {
+void render(GLFWwindow *window, ProgramBundle *program, VertexBufferBundle *buffer) {
     glUseProgram(program->programID);
     applyUniforms(program);
     glBindVertexArray(buffer->VAO);

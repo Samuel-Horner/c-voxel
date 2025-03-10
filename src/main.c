@@ -101,7 +101,7 @@ int main() {
     generateFreeTypeTexture();
 
     ProgramBundle text_program = createTextProgram(window_width, window_height);
-    BufferBundle text_buffer_bundle = createTextBuffer();
+    VertexBufferBundle text_buffer_bundle = createTextBuffer();
 
     // Fetch vertex and fragment source
     char *chunk_vertex_source = getShaderSource("./src/shaders/basic_vert.glsl");
