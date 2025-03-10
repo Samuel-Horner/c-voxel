@@ -14,3 +14,5 @@ cmake --build build
 -- To run the executable
 ./build/c_voxel
 ```
+
+To build this project the only external library you need to install is GLFW and some OpenGL drivers. All other libraries will be fetched by CMake.

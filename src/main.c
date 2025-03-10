@@ -81,12 +81,15 @@ void modelFunction(unsigned int location){
 }
 
 int main() {
-    // Check CWD!
+    // Check CWD and CSTD!
     char cwd[PATH_MAX];
     if (getcwd(cwd, sizeof(cwd)) != NULL) { printf("Current working dir: %s\n", cwd); }
     else { printf("Couldnt fetch CWD."); return -1; }
-
-    // return 0;
+    #ifdef __STDC_VERSION__
+    printf("Compiled with C: %ld\n", __STDC_VERSION__);
+    #else
+    printf("Unkown STDC Version\n");
+    #endif
 
     // Initialise window and glsl
     GLFWwindow* window = initialiseWindow(window_width, window_height);
