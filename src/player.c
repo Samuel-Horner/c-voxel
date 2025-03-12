@@ -2,10 +2,11 @@
 #define PLAYER
 
 #include "cglm/cglm.h"
+#include "cglm/mat4.h"
 #include "glad/gl.h"
 #include <GLFW/glfw3.h>
+#include "engine.c"
 
-#include <stdlib.h>
 #include <math.h>
 
 typedef struct Camera {
@@ -54,11 +55,11 @@ void cursorPositionCallback(GLFWwindow *window, double x, double y) {
 void viewFunction(unsigned int location){
     mat4 view = GLM_MAT4_IDENTITY_INIT;
     glm_look(cam.pos, cam.dir, cam.up, view);
-    glUniformMatrix4fv(location, 1, GL_FALSE, (float *) view);
+    glBufferSubData(GL_UNIFORM_BUFFER, location, 16 * OPENGL_N_SIZE, view);
 }
 
 void projectionFunction(unsigned int location){
-    glUniformMatrix4fv(location, 1, GL_FALSE, (float *) cam.projection);
+    glBufferSubData(GL_UNIFORM_BUFFER, location, 16 * OPENGL_N_SIZE, cam.projection);
 }
 
 void cameraMovement(GLFWwindow *window, float delta_time) {

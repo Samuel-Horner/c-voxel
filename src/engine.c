@@ -6,7 +6,9 @@
 #include "glad/gl.h"
 #include <GLFW/glfw3.h>
 #include <stdlib.h>
+#include <unistd.h>
 
+#define OPENGL_N_SIZE 4 // sizeof(float) for the GPU
 
 typedef struct {
     float *values;
@@ -40,7 +42,7 @@ struct UniformArray {
 typedef struct {
     unsigned int UBO;
     struct UniformArray uniforms;
-    unsigned int length;
+    unsigned int size;
 } UniformBufferBundle;
 
 typedef struct ProgramBundle {
@@ -187,18 +189,57 @@ void applyUniforms(ProgramBundle *program) {
     }
 }
 
-UniformBufferBundle createUniformBufferBundle(UniformFunction *uniform_funcs, unsigned int *uniform_sizes, unsigned int uniform_count, int verbose) {
+UniformBufferBundle createUniformBufferBundle(UniformFunction *uniform_funcs, unsigned int *uniform_sizes, unsigned int uniform_count, unsigned int bind_point, int verbose) {
     // https://learnopengl.com/Advanced-OpenGL/Advanced-GLSL
     // See uniform buffers
     UniformBufferBundle bundle;
-    
-    // DO SOME MAGIC!
+
+    bundle.uniforms.values = malloc(sizeof(UniformBundle) * uniform_count);
+    if (bundle.uniforms.values == NULL) { return bundle; }
+
+    bundle.uniforms.size = uniform_count;
+    int offset = 0;
+    for (int i = 0; i < uniform_count; i++) {
+        bundle.uniforms.values[i].func = uniform_funcs[i];
+        bundle.uniforms.values[i].location = offset;
+        offset += uniform_sizes[i];
+    }
+
+    glGenBuffers(1, &bundle.UBO);
+    glBindBuffer(GL_UNIFORM_BUFFER, bundle.UBO);
+
+    bundle.size = 0;
+    for (int i = 0; i < uniform_count; i++) {
+        bundle.size += uniform_sizes[i];
+    }
+
+    glBufferData(GL_UNIFORM_BUFFER, bundle.size, NULL, GL_STATIC_DRAW);
+    glBindBufferBase(GL_UNIFORM_BUFFER, bind_point, bundle.UBO);
+
+    if (verbose) { 
+        printf("Created uniform buffer bundle {location:%d, size:%d, bound:%d, locations:{", bundle.UBO, bundle.size, bind_point);
+        for (int i = 0; i < bundle.uniforms.size; i++) {
+            printf("%d", bundle.uniforms.values[i].location);
+            if (i < bundle.uniforms.size - 1) { printf(", "); }
+        }
+        printf("}\n");
+    }
 
     return bundle;
 }
 
 // Assign to things shader program
-void bindUniformBufferBundle(ProgramBundle *program, char *name) {}
+void bindUniformBufferBundle(ProgramBundle *program, UniformBufferBundle *bundle, char *name, unsigned int bind_point) {
+    glUniformBlockBinding(program->programID, glGetUniformBlockIndex(program->programID, name), bind_point);
+}
+
+// Apply functions to set values
+void applyUniformBufferBundle(UniformBufferBundle *bundle) {
+    glBindBuffer(GL_UNIFORM_BUFFER, bundle->UBO);
+    for (unsigned int i = 0; i < bundle->uniforms.size; i++){
+        bundle->uniforms.values[i].func(bundle->uniforms.values[i].location);
+    }
+}
 
 void clearWindow(GLFWwindow *window) {
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
@@ -219,6 +260,10 @@ void finishRender(GLFWwindow *window) {
 
 void freeProgram(ProgramBundle *program) {
     free(program->uniforms.values);
+}
+
+void freeUniformBuffer(UniformBufferBundle *bundle) {
+    free(bundle->uniforms.values);
 }
 
 #endif

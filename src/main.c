@@ -18,7 +18,6 @@
 #include <limits.h>
 #include <sys/resource.h>
 
-
 unsigned int window_width = 1280;
 unsigned int window_height = 800;
 
@@ -119,10 +118,19 @@ int main() {
     free(chunk_fragment_source);
 
     // Bind uniforms
-    #define UNIFORM_COUNT 3
-    char *uniform_names[UNIFORM_COUNT] = {"model", "view", "projection"};
-    UniformFunction uniform_funcs[UNIFORM_COUNT] = {modelFunction, viewFunction, projectionFunction};
+    #define UNIFORM_COUNT 1
+    char *uniform_names[UNIFORM_COUNT] = {"model"};
+    UniformFunction uniform_funcs[UNIFORM_COUNT] = {modelFunction};
     bindUniforms(&chunk_program, uniform_names, uniform_funcs, UNIFORM_COUNT);
+
+    // Create and bind uniform buffer
+    #define CAMERA_UNIFORM_COUNT 2
+    UniformFunction camera_uniform_funcs[CAMERA_UNIFORM_COUNT] = {viewFunction, projectionFunction};
+    // Mat4 is 16 * OPENGL_N_SIZE, and is aligned nicely with std140
+    unsigned int camera_uniform_sizes[CAMERA_UNIFORM_COUNT] = {16 * OPENGL_N_SIZE, 16 * OPENGL_N_SIZE}; 
+    UniformBufferBundle camera_uniform_buffer_bundle = createUniformBufferBundle(camera_uniform_funcs, camera_uniform_sizes, CAMERA_UNIFORM_COUNT, 0, 1);
+
+    bindUniformBufferBundle(&chunk_program, &camera_uniform_buffer_bundle, "CamBlock", 0);
 
     // Initlialise Camera
     initialisePlayerCamera(window_width, window_height);
@@ -145,6 +153,7 @@ int main() {
         clearWindow(window);
 
         // Apply uniforms and render
+        applyUniformBufferBundle(&camera_uniform_buffer_bundle);
         renderWorld(&world, &chunk_program, &model_pointer, window);
         
         getrusage(RUSAGE_SELF, &r_usage);
@@ -159,6 +168,7 @@ int main() {
     freeVector(&world.chunks);
     freeProgram(&text_program);
     freeProgram(&chunk_program);
+    freeUniformBuffer(&camera_uniform_buffer_bundle);
     glfwTerminate();
 
     return 0;
