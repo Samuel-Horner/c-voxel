@@ -23,26 +23,31 @@ void renderWorld(World *world, ProgramBundle *chunk_program, mat4 **model_pointe
     for (int i = 0; i < world->chunks.size; i++) {
         Chunk *chunk = vectorIndex(&world->chunks, i);
         *model_pointer = &(chunk->model);
-        render(window, chunk_program, &(chunk->buffer_bundle));
+        renderWithSSBOBundle(window, chunk_program, &(chunk->buffer_bundle), 0, chunk->buffer_bundle.length * FACES_PER_VOXEL * VERTS_PER_FACE / VALS_PER_VOXEL);
     }
 }
 
 void populateWorld(World *world) {
-    for (int x = 0; x <= world->render_distance * 2; x++) {
+    for (int x = -world->render_distance; x < world->render_distance; x++) {
         for (int y = 0; y < world->world_height; y++) {
-            for (int z = 0; z <= world->render_distance * 2; z++) {
-                vectorPushFree(&world->chunks, createChunk((ivec3) {world->centre_pos[0] + x - world->render_distance, y, world->centre_pos[1] + z - world->render_distance}));
+            for (int z = -world->render_distance; z < world->render_distance; z++) {
+                Chunk *new_chunk = createChunk((ivec3) {world->centre_pos[0] + x, y, world->centre_pos[1] + z});
+                if (new_chunk == NULL) { printf("Error: NULL chunk at (%d %d %d).\n", x, y, z); continue; }
+
+                vectorPush(&world->chunks, new_chunk);
+
+                free(new_chunk);
             }
         }
     }
 }
 
-World createWorld(int render_distance, int world_height, ivec2 chunk_pos) {
+World createWorld(int render_distance, int world_height, ivec2 centre_pos) {
     World world;
     world.render_distance = render_distance;
     world.world_height = world_height;
     world.chunks = vectorInit(sizeof(Chunk), worldSize(world));
-    glm_ivec2_copy(chunk_pos, world.centre_pos);
+    glm_ivec2_copy(centre_pos, world.centre_pos);
 
     populateWorld(&world);
 

@@ -1,6 +1,7 @@
 #ifndef ENGINE
 #define ENGINE
 
+#include <emmintrin.h>
 #include <stdio.h>
 #include <time.h>
 #include "glad/gl.h"
@@ -27,6 +28,11 @@ typedef struct {
     unsigned int length;
 } VertexBufferBundle;
 
+typedef struct {
+    unsigned int SSBO;
+    unsigned int length;
+} SSBOBundle;
+
 typedef void (*UniformFunction)(unsigned int programID); 
 
 typedef struct UniformBundle {
@@ -49,6 +55,8 @@ typedef struct ProgramBundle {
     unsigned int programID;
     struct UniformArray uniforms;
 } ProgramBundle;
+
+unsigned int empty_vao;
 
 GLFWwindow* initialiseWindow(unsigned int width, unsigned int height) {
     GLFWwindow* window;
@@ -85,7 +93,9 @@ int setupOpenGL(unsigned int width, unsigned int height) {
     glClearColor(1., 0., 1., 1.);
     
     glEnable(GL_DEPTH_TEST);
-    glEnable(GL_CULL_FACE); 
+    glEnable(GL_CULL_FACE);
+    
+    glGenVertexArrays(1, &empty_vao); // Empty VAO needed to avoid GL_INVALID_OPERATION https://www.khronos.org/opengl/wiki/Vertex_Rendering/Rendering_Failure
 
     return 1;
 }
@@ -174,6 +184,10 @@ VertexBufferBundle createVertexBufferBundle(VertexArray vertices, IndexArray ind
     }
 
     bundle.length = indices.size;
+    
+    glBindBuffer(GL_ARRAY_BUFFER, 0);
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
+    glBindVertexArray(0);
 
     return bundle;
 }
@@ -181,6 +195,7 @@ VertexBufferBundle createVertexBufferBundle(VertexArray vertices, IndexArray ind
 void updateBuffer(GLenum buffer_type, unsigned int buffer_id, void *data, size_t data_size, size_t data_length) {
     glBindBuffer(buffer_type, buffer_id);
     glBufferSubData(buffer_type, 0, data_size * data_length, data);
+    glBindBuffer(buffer_type, 0);
 }
 
 void applyUniforms(ProgramBundle *program) {
@@ -222,8 +237,10 @@ UniformBufferBundle createUniformBufferBundle(UniformFunction *uniform_funcs, un
             printf("%d", bundle.uniforms.values[i].location);
             if (i < bundle.uniforms.size - 1) { printf(", "); }
         }
-        printf("}\n");
+        printf("}}\n");
     }
+
+    glBindBuffer(GL_UNIFORM_BUFFER, 0);
 
     return bundle;
 }
@@ -239,6 +256,28 @@ void applyUniformBufferBundle(UniformBufferBundle *bundle) {
     for (unsigned int i = 0; i < bundle->uniforms.size; i++){
         bundle->uniforms.values[i].func(bundle->uniforms.values[i].location);
     }
+    glBindBuffer(GL_UNIFORM_BUFFER, 0);
+}
+
+SSBOBundle createSSBOBundle(void *values, size_t data_size, unsigned int length, int verbose) {
+    SSBOBundle bundle;
+
+    glGenBuffers(1, &bundle.SSBO);
+
+    glBindBuffer(GL_SHADER_STORAGE_BUFFER, bundle.SSBO);
+
+    glBufferData(GL_SHADER_STORAGE_BUFFER, data_size, values, GL_DYNAMIC_DRAW);
+    if (verbose) { printf("Created new SBBO %d sized %zu B (%d vals).\n", bundle.SSBO, data_size, length); }
+
+    glBindBuffer(GL_SHADER_STORAGE_BUFFER, 0);
+
+    bundle.length = length;
+
+    return bundle;
+}
+
+void bindSBBOBundle(SSBOBundle *bundle, unsigned int bind_point) {
+    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, bind_point, bundle->SSBO);
 }
 
 void clearWindow(GLFWwindow *window) {
@@ -252,6 +291,22 @@ void render(GLFWwindow *window, ProgramBundle *program, VertexBufferBundle *buff
     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, buffer->EBO);
 
     glDrawElements(GL_TRIANGLES, buffer->length, GL_UNSIGNED_INT, 0);
+
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
+    glUseProgram(0);
+}
+
+void renderWithSSBOBundle(GLFWwindow *window, ProgramBundle *program, SSBOBundle *bundle, unsigned int bind_point, unsigned int draw_amount) {
+    glUseProgram(program->programID);
+    applyUniforms(program);
+
+    glBindVertexArray(empty_vao);
+    bindSBBOBundle(bundle, bind_point);
+    
+    glDrawArrays(GL_TRIANGLES, 0, draw_amount);
+
+    glBindVertexArray(0);
+    glBindBuffer(GL_SHADER_STORAGE_BUFFER, 0);
 }
 
 void finishRender(GLFWwindow *window) {

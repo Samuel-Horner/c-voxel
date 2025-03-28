@@ -66,12 +66,6 @@ int vectorPush(Vector *vector, void *item) {
     return 1;
 }
 
-int vectorPushFree(Vector *vector, void *item) {
-    int ret = vectorPush(vector, item);
-    free(item);
-    return ret;
-}
-
 int vectorPushArray(Vector *vector, void *array, size_t array_size) {
     vector->size += array_size;
 
@@ -167,11 +161,12 @@ Vector vectorFromArray(size_t item_size, size_t array_size, void *array) {
     return vector;
 }
 
-#define printVector(type, format, vector) do { \
-    printf("{"); \
+#define printVector(type, format, vector, vals_per_line) do { \
+    printf("{0: "); \
     for (size_t i = 0; i < vector.size; i++) { \
         printf(format, *((type *) vectorIndex(&vector, i))); \
         if (i < vector.size - 1) { printf(", "); } \
+        if ((i + 1) % vals_per_line == 0) { printf("\n %d: ", i / vals_per_line); } \
     } \
     printf("} Size: %zu, Capacity: %zu\n", vector.size, vector.capacity); \
 } while(0)

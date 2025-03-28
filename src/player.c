@@ -98,13 +98,13 @@ void calculateProjection(int window_width, int window_height) {
     glm_perspective(glm_rad(45.), (float) window_width / (float) window_height, .1, 1000., cam.projection);
 }
 
-void initialisePlayerCamera(int window_width, int window_height) {
+void initialisePlayerCamera(int window_width, int window_height, vec3 initial_pos) {
     cam.speed = 10.;
     cam.sensitivity = 0.05;
     cam.pitch = 0;
     cam.yaw = 90; // Start looking in pos_z dir
     
-    glm_vec3_copy((vec3) {0., 0., 0.}, cam.pos);
+    glm_vec3_copy(initial_pos, cam.pos);
     cameraRotate(0, 0);
 
     calculateProjection(window_width, window_height);

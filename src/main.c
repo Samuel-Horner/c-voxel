@@ -2,6 +2,7 @@
 #define MAIN
 
 #include "cglm/cglm.h"
+#include "chunk.c"
 #include "glad/gl.h"
 #include <GLFW/glfw3.h>
 
@@ -133,9 +134,11 @@ int main() {
     bindUniformBufferBundle(&chunk_program, &camera_uniform_buffer_bundle, "CamBlock", 0);
 
     // Initlialise Camera
-    initialisePlayerCamera(window_width, window_height);
+    initialisePlayerCamera(window_width, window_height, (vec3) {0., 0., 0.});
 
-    World world = createWorld(1, 1, (ivec2) {0, 0});
+    // Getting weird segfaults when populating world at rd > 4
+    World world = createWorld(8, 1, (ivec2) {0, 0});
+    // Chunk* test_chunk = createChunk((ivec3) {0, 0, 0});
 
     float last = getTimeStamp();
 
@@ -155,17 +158,19 @@ int main() {
         // Apply uniforms and render
         applyUniformBufferBundle(&camera_uniform_buffer_bundle);
         renderWorld(&world, &chunk_program, &model_pointer, window);
+        // model_pointer = &(test_chunk->model);
+        // renderWithSSBOVAOBundle(window, &chunk_program, &(test_chunk->buffer_bundle), 0, test_chunk->buffer_bundle.length * FACES_PER_VOXEL * VERTS_PER_FACE / VALS_PER_VOXEL);
         
         getrusage(RUSAGE_SELF, &r_usage);
         char *debug_string;
-        if(!asprintf(&debug_string, "FPS: %.3f MEM: %.3fMB POS: (%.3f, %.3f, %.3f) C: %zu", 1. / delta_time, r_usage.ru_maxrss / 1048576., cam.pos[0], cam.pos[1], cam.pos[2], world.chunks.size)) { printf("ERROR: Error creating debug string!\n"); return -1; }
+        if(!asprintf(&debug_string, "FPS: %.3f MEM: %.3fMB POS: (%.3f, %.3f, %.3f) C: %zu", 1. / delta_time, r_usage.ru_maxrss / 1048576., cam.pos[0], cam.pos[1], cam.pos[2], /* world.chunks.size */ (size_t) 1)) { printf("ERROR: Error creating debug string!\n"); return -1; }
         renderText(&text_buffer_bundle, &text_program, debug_string, (vec2) {10, 10}, 0.15);
         free(debug_string);
 
         finishRender(window);
     }
 
-    freeVector(&world.chunks);
+    // freeVector(&world.chunks);
     freeProgram(&text_program);
     freeProgram(&chunk_program);
     freeUniformBuffer(&camera_uniform_buffer_bundle);

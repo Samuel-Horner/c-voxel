@@ -11,46 +11,9 @@
 #include <string.h>
 
 #define CHUNK_SIZE 16
-#define VERTS_PER_VOXEL 8
-#define VALS_PER_VERT 6
-#define TRIS_PER_VOXEL 12
-
-float VOXEL_VERTICES[][3] = {
-    {1., 1., 1.},
-    {1., 0., 1.},
-    {0., 0., 1.},
-    {0., 1., 1.},
-    {1., 1., 0.},
-    {1., 0., 0.},
-    {0., 0., 0.},
-    {0., 1., 0.}
-};
-
-int VOXEL_INDICES[][3] = {
-    {3, 1, 0}, // Back Face
-    {3, 2, 1},
-    {4, 5, 7}, // Front Face
-    {5, 6, 7},
-    {0, 5, 4}, // Right Face
-    {0, 1, 5},
-    {7, 6, 3}, // Left Face
-    {6, 2, 3},
-    {0, 4, 7}, // Top Face
-    {3, 0, 7},
-    {6, 5, 1}, // Bottom Face
-    {6, 1, 2}
-};
-
-float VOXEL_COLORS[][3] = {
-    {1., 0., 0.},
-    {0., 1., 0.},
-    {0., 0., 1.},
-    {1., 1., 1.},
-    {.5, 0., 0.},
-    {0., .5, 0.},
-    {0., 0., .5},
-    {.5, .5, .5}
-};
+#define VALS_PER_VOXEL 6
+#define FACES_PER_VOXEL 6
+#define VERTS_PER_FACE 6
 
 typedef enum Voxel {
     OCCUPIED,
@@ -60,73 +23,50 @@ typedef enum Voxel {
 typedef struct Chunk {
     ivec3 chunk_pos;
     Voxel voxels[CHUNK_SIZE * CHUNK_SIZE * CHUNK_SIZE];
-    VertexBufferBundle buffer_bundle;
+    SSBOBundle buffer_bundle;
     mat4 model;
 } Chunk;
 
-VertexBufferBundle createBuffers(Voxel *voxels, vec3 *voxel_colors, int voxel_count) {
-    VertexBufferBundle bundle;
-
-    VertexArray vertices;
-    vertices.size = voxel_count * VERTS_PER_VOXEL * VALS_PER_VERT;
-    vertices.values = NULL;
-
-    IndexArray indices;
-    indices.size = voxel_count * TRIS_PER_VOXEL * 3;
-    indices.values = NULL;
-    
-    unsigned int vertex_split[2] = {3, 3};
-    bundle = createVertexBufferBundle(vertices, indices, VALS_PER_VERT, 2, vertex_split, GL_DYNAMIC_DRAW, 0);
-    
-    return bundle;
+SSBOBundle createBuffers(Vector *voxel_data) {
+    return createSSBOBundle(voxel_data->vals, voxel_data->size * voxel_data->item_size, voxel_data->size, 1);
 }
 
+#define getVoxelIndex(x, y, z) (x * CHUNK_SIZE * CHUNK_SIZE + y * CHUNK_SIZE + z)
+#define getOffsetIndex(index, x_offset, y_offset, z_offset) (index + (CHUNK_SIZE * CHUNK_SIZE * x_offset) + (CHUNK_SIZE * y_offset) + z_offset)
 
-#define getVoxelIndex(x, y, z) x * CHUNK_SIZE * CHUNK_SIZE + y * CHUNK_SIZE + z
 
 void createChunkMesh(Chunk *chunk) {
-    Vector verts = vectorInit(sizeof(float), 3);
-    Vector indices = vectorInit(sizeof(int), 3);
+    Vector voxel_data = vectorInit(sizeof(float), VALS_PER_VOXEL);
 
-    // Do some fancy chunk meshing algorithm here
-    int index_offset = 0;
-    
     for (int x = 0; x < CHUNK_SIZE; x++) {
         for (int y = 0; y < CHUNK_SIZE; y++) {
             for (int z = 0; z < CHUNK_SIZE; z++) {
                 int voxel_index = getVoxelIndex(x, y, z);
-
                 if (chunk->voxels[voxel_index] != OCCUPIED) { continue; }
 
-                vec3 voxel_coords;
-                glm_vec3_copy((vec3) {x, y, z}, voxel_coords);
-
-                for (int i = 0; i < TRIS_PER_VOXEL; i++) {
-                    ivec3 tri_indices;
-                    glm_ivec3_adds(VOXEL_INDICES[i], index_offset, tri_indices);
-                    vectorPushArray(&indices, tri_indices, 3);
+                if (x != CHUNK_SIZE - 1 && y != CHUNK_SIZE - 1 && z != CHUNK_SIZE - 1 && x != 0 && y != 0 && z != 0) {
+                    if (chunk->voxels[getOffsetIndex(voxel_index, 1, 0, 0)] == OCCUPIED &&
+                        chunk->voxels[getOffsetIndex(voxel_index,-1, 0, 0)] == OCCUPIED &&
+                        chunk->voxels[getOffsetIndex(voxel_index, 0, 1, 0)] == OCCUPIED &&
+                        chunk->voxels[getOffsetIndex(voxel_index, 0,-1, 0)] == OCCUPIED &&
+                        chunk->voxels[getOffsetIndex(voxel_index, 0, 0, 1)] == OCCUPIED &&
+                        chunk->voxels[getOffsetIndex(voxel_index, 0, 0,-1)] == OCCUPIED) {
+                        continue;
+                    }
                 }
 
-                for (int i = 0; i < VERTS_PER_VOXEL; i++) {
-                    vec3 vert_coords;
-                    glm_vec3_add(VOXEL_VERTICES[i], voxel_coords, vert_coords);
-                    vectorPushArray(&verts, vert_coords, 3);
-                
-                    vec3 vert_color;
-                    glm_vec3_copy(VOXEL_COLORS[i], vert_color);
-                    vectorPushArray(&verts, vert_color, 3);
-                    index_offset += 1;
-                }
+                float voxel_coords[3] = {x, y, z};
+                vectorPushArray(&voxel_data, voxel_coords, 3);
+            
+                float vert_color[3] = {(float) x / CHUNK_SIZE, (float) y / CHUNK_SIZE, (float) z / CHUNK_SIZE};
+                vectorPushArray(&voxel_data, vert_color, 3);
             }
         }
     }
 
-    updateBuffer(GL_ARRAY_BUFFER, chunk->buffer_bundle.VBO, verts.vals, verts.item_size, verts.size);
-    updateBuffer(GL_ELEMENT_ARRAY_BUFFER, chunk->buffer_bundle.EBO, indices.vals, indices.item_size, indices.size);
-    chunk->buffer_bundle.length = indices.size;
+    chunk->buffer_bundle = createBuffers(&voxel_data);
 
-    freeVector(&verts);
-    freeVector(&indices);
+    freeVector(&voxel_data);
 }
 
 Chunk *createChunk(ivec3 chunk_pos) {
@@ -137,10 +77,12 @@ Chunk *createChunk(ivec3 chunk_pos) {
 
     int voxel_count = CHUNK_SIZE * CHUNK_SIZE * CHUNK_SIZE;
     for (int i = 0; i < voxel_count; i++) {
+        // if (i % 2 == 0) {
+        //     chunk->voxels[i] = OCCUPIED;
+        // }
         chunk->voxels[i] = OCCUPIED;
     }
 
-    chunk->buffer_bundle = createBuffers(chunk->voxels, NULL, voxel_count);
     createChunkMesh(chunk);
 
     glm_mat4_dup(GLM_MAT4_IDENTITY, chunk->model);
