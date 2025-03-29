@@ -137,7 +137,7 @@ int main() {
     initialisePlayerCamera(window_width, window_height, (vec3) {0., 0., 0.});
 
     // Getting weird segfaults when populating world at rd > 4
-    World world = createWorld(8, 1, (ivec2) {0, 0});
+    World world = createWorld(2, 4, (ivec2) {0, 0});
     // Chunk* test_chunk = createChunk((ivec3) {0, 0, 0});
 
     float last = getTimeStamp();

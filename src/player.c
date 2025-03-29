@@ -64,7 +64,6 @@ void projectionFunction(unsigned int location){
 
 void cameraMovement(GLFWwindow *window, float delta_time) {
     vec3 movement = GLM_VEC3_ZERO_INIT;
-    vec3 inverse_movement = GLM_VEC3_ZERO_INIT;
     float speed = cam.speed;
 
     if (glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS) { 

@@ -7,6 +7,10 @@
 
 #define GROWTH_FACTOR 2
 
+// Some general notes:
+// NEVER let the vector go to 0 in capacity, things will get very ugly very quickly. As long as a vector is not initialised to have 0 capacity, this shouldnt occur.
+// Since we are using void pointers, make sure the item size is correct, otherwise you will get segfaults, which no one likes.
+
 typedef struct Vector {
     void *vals;
     size_t item_size;
@@ -25,7 +29,7 @@ int vectorGrow(Vector *vector) {
         vector->capacity /= GROWTH_FACTOR;
         return 0; 
     }
-   
+
     memcpy(new_vals, vector->vals, vector->size * vector->item_size);
     
     free(vector->vals);
@@ -51,18 +55,18 @@ int vectorShrink(Vector *vector) {
 }
 
 void *vectorIndex(Vector *vector, size_t index) {
-    if (index >= vector->size) { return NULL; }
+    if (index >= vector->capacity) { return NULL; }
     return vector->vals + index * vector->item_size;
 }
 
 int vectorPush(Vector *vector, void *item) {
-    vector->size++;
-    
-    if (vector->size > vector->capacity) {
-        if (!vectorGrow(vector)) { vector->size--; return 0; }
+    if (vector->size + 1 > vector->capacity) {
+        if (!vectorGrow(vector)) { return 0; }
     }
 
-    memcpy(vectorIndex(vector, vector->size - 1), item, vector->item_size);
+    memcpy(vectorIndex(vector, vector->size), item, vector->item_size);
+    vector->size++;
+
     return 1;
 }
 
@@ -102,7 +106,7 @@ int vectorPushArray(Vector *vector, void *array, size_t array_size) {
 
 int vectorPop(Vector *vector, void *dest) {
     if (vector->size == 0) { return 0; }
-    void *top = vector->vals + (vector->size - 1) * vector->item_size;
+    void *top = vectorIndex(vector, vector->size - 1);
     if (dest == NULL || top == NULL) { return 0; } 
     
     memcpy(dest, top, vector->item_size);
@@ -146,14 +150,13 @@ Vector vectorInit(size_t item_size, size_t initial_capacity) {
     vector.item_size = item_size;
     vector.size = 0;
     vector.vals = vectorAllocate(&vector);
-    if (vector.vals == NULL) { 
-        printf("ERROR: Failed to allocated space for vector\n");
-    }
+    if (vector.vals == NULL) { printf("ERROR: Failed to allocated space for vector\n"); }
     return vector;
 }
 
 Vector vectorFromArray(size_t item_size, size_t array_size, void *array) {
     Vector vector = vectorInit(item_size, array_size);
+    if (vector.vals == NULL) { return vector; }
 
     memcpy(vector.vals, array, array_size * item_size);
     vector.size = array_size;
