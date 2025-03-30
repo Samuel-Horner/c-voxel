@@ -90,7 +90,7 @@ Chunk *createChunk(ivec3 chunk_pos, int verbose) {
 
     int voxel_count = CHUNK_SIZE * CHUNK_SIZE * CHUNK_SIZE;
     for (int i = 0; i < voxel_count; i++) {
-        // if (i % 3 == 0) { chunk->voxels[i] = OCCUPIED; }
+        // if (i % 2 == 0) { chunk->voxels[i] = OCCUPIED; }
         // else { chunk->voxels[i] = EMPTY; }
         chunk->voxels[i] = OCCUPIED;
     }

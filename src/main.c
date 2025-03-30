@@ -163,7 +163,7 @@ int main() {
         
         getrusage(RUSAGE_SELF, &r_usage);
         char *debug_string;
-        if(!asprintf(&debug_string, "FPS: %.3f MEM: %.3fMB POS: (%.3f, %.3f, %.3f) C: %zu", 1. / delta_time, r_usage.ru_maxrss / 1048576., cam.pos[0], cam.pos[1], cam.pos[2], /* world.chunks.size */ (size_t) 1)) { printf("ERROR: Error creating debug string!\n"); return -1; }
+        if(!asprintf(&debug_string, "FPS: %.3f MEM: %.3fMB POS: (%.3f, %.3f, %.3f) C: %zu", 1. / delta_time, r_usage.ru_maxrss / 1048576., cam.pos[0], cam.pos[1], cam.pos[2], world.chunks.size)) { printf("ERROR: Error creating debug string!\n"); return -1; }
         renderText(&text_buffer_bundle, &text_program, debug_string, (vec2) {10, 10}, 0.15);
         free(debug_string);
 

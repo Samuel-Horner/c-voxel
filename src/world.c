@@ -20,6 +20,7 @@ typedef struct World {
 } World;
 
 #define worldSize(world) (world.render_distance * 2 * world.render_distance * 2 * world.world_height)
+#define getIndexGivenRelativePos(world, rpos) ((rpos)[0] * 2 * (world).render_distance * (world).world_height + (rpos)[1] * 2 * (world).render_distance + (rpos)[2])
 
 World *current_world = NULL;
 
@@ -29,21 +30,32 @@ Voxel getVoxel(ivec3 pos) {
     ivec3 chunk_pos;
     glm_ivec3_copy((ivec3) {divFloor(pos[0], CHUNK_SIZE), divFloor(pos[1], CHUNK_SIZE), divFloor(pos[2], CHUNK_SIZE)}, chunk_pos);
 
-    Chunk *chunk = NULL;
-    Chunk *current = current_world->chunks.vals;
+    // Chunk *chunk = NULL;
+    // Chunk *current = current_world->chunks.vals;
 
-    // TODO: OPTIMISE THIS! like seriously it is not good, maybe hashmap? or a lookup table?
-    // Very costly here since we are not using a hashmap for the world, but a vector
-    for (size_t i = 0; i < current_world->chunks.size; i++) {
-        if (glm_ivec3_eqv(current->chunk_pos, chunk_pos)) { chunk = current; break; }
-        current++;
+    // // TODO: OPTIMISE THIS! like seriously it is not good, maybe hashmap? or a lookup table?
+    // // Very costly here since we are not using a hashmap for the world, but a vector
+    // for (size_t i = 0; i < current_world->chunks.size; i++) {
+    //     if (glm_ivec3_eqv(current->chunk_pos, chunk_pos)) { chunk = current; break; }
+    //     current++;
+    // }
+    
+    // Solution assuming chunk pos is 0, 0, 0 and chunk vector is not edited.
+    // This will need to be replaced at some point
+    ivec3 relative_pos;
+    glm_ivec3_add(chunk_pos, (ivec3) {current_world->render_distance, 0, current_world->render_distance}, relative_pos);
+    if (relative_pos[0] < 0 || relative_pos[0] >= current_world->render_distance * 2 ||
+        relative_pos[1] < 0 || relative_pos[1] >= current_world->world_height  ||
+        relative_pos[2] < 0 || relative_pos[2] >= current_world->render_distance * 2) {
+        return EMPTY;
     }
+    
+    int index = getIndexGivenRelativePos((*current_world), relative_pos);
+
+    Chunk *chunk = vectorIndex(&current_world->chunks, index);
+    if (!glm_ivec3_eqv(chunk_pos, chunk->chunk_pos)) { printf("(%d): (%d, %d, %d) [%d, %d, %d] -> (%d, %d, %d)\n", index, chunk_pos[0], chunk_pos[1], chunk_pos[2], relative_pos[0], relative_pos[1], relative_pos[2], chunk->chunk_pos[0], chunk->chunk_pos[1], chunk->chunk_pos[2]); }
 
     if (chunk == NULL) { return EMPTY; }
-
-    ivec3 relative_pos;
-    glm_ivec3_copy(pos, relative_pos);
-    glm_ivec3_mulsubs(chunk_pos, CHUNK_SIZE, relative_pos);
 
     return chunk->voxels[getVoxelIndex(relative_pos[0], relative_pos[1], relative_pos[2])];
 }

@@ -1,4 +1,1 @@
-Big:
-1. Make face culling algorithm
-2. Adapt chunks to use 
-3. Use voxel packing and SSBOs for one vertex per voxel
+- Look into an issue where the culling culls voxels on the borders of alternating top two chunks when using %2 chunk fills.
