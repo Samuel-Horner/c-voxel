@@ -1,14 +1,25 @@
 #version 460 core
 
-struct VoxelData {
-    float voxel_pos[3]; // Using arrays instead of vectors to tightly pack data.
-    float voxel_col[3];
-};
+// struct VoxelData {
+//     float voxel_pos[3]; // Using arrays instead of vectors to tightly pack data.
+//     float voxel_col[3];
+// };
 
 #define VERTEX_PULLING_SCALE 36
 
+// struct VoxelData {
+//     uint x : 4;
+//     uint y : 4;
+//     uint z : 4;
+//     uint r : 4;
+//     uint g : 4;
+//     uint b : 4;
+//     uint flags : 8;
+// };
+
 layout (std430, binding = 0) readonly buffer VoxelSSBO {
-    VoxelData voxels[];
+    // VoxelData voxels[];
+    uint voxels[];
 };
 
 const vec3 vert_positions[8] = vec3[8](
@@ -48,12 +59,21 @@ uniform mat4 model;
 
 void main(){
     int voxel_index = gl_VertexID / VERTEX_PULLING_SCALE;
-    vec3 pos = vec3(voxels[voxel_index].voxel_pos[0], voxels[voxel_index].voxel_pos[1], voxels[voxel_index].voxel_pos[2]);
+    uint data = voxels[voxel_index];
+    uint x = (data) & 0xF ;
+    uint y = (data >> 4) & 0xF;
+    uint z = (data >> 8) & 0xF;
+    vec3 pos = vec3(x, y, z);
+
+    uint r = (data >> 12) & 0xF;
+    uint g = (data >> 16) & 0xF;
+    uint b = (data >> 20) & 0xF;
+    vec3 col = vec3(r, g, b) / 16.;
 
     int vert_offset = gl_VertexID % VERTEX_PULLING_SCALE;
     int index = voxel_indices[vert_offset];
     pos += vert_positions[index];
 
     gl_Position = projection * view * model * vec4(pos, 1.0);
-    VertexColor = vec3(voxels[voxel_index].voxel_col[0], voxels[voxel_index].voxel_col[1], voxels[voxel_index].voxel_col[2]);
+    VertexColor = col;
 }
