@@ -141,7 +141,7 @@ int main() {
     // Chunk* test_chunk = createChunk((ivec3) {0, 0, 0});
     
     // Initlialise Camera
-    initialisePlayerCamera(window_width, window_height, (vec3) {0., WH * 16, -RD * 16.});
+    initialisePlayerCamera(window_width, window_height, (vec3) {0., WH * 8, 0});
 
     float last = getTimeStamp();
 

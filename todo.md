@@ -1,2 +1,3 @@
 - Look into an issue where the culling culls voxels on the borders of alternating top two chunks when using %2 chunk fills.
 - For some reason, when RD > 8 (defo happens at 16) everything goes wrong
+- For some reason, all getVoxel calls to chunks in -x -z quadrant return empty? i think? Doing this from main doesnt, but in chunk meshing does?

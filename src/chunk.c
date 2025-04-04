@@ -64,7 +64,7 @@ void printBinaryInt(int x) {
 void generateNewChunk(Chunk *chunk) {
     int voxel_count = CHUNK_SIZE * CHUNK_SIZE * CHUNK_SIZE;
     for (int i = 0; i < voxel_count; i++) {
-        // if (i % 2 == 0) { chunk->voxels[i] = OCCUPIED; }
+        // if (i % 3 == 0) { chunk->voxels[i] = OCCUPIED; }
         // else { chunk->voxels[i] = EMPTY; }
         chunk->voxels[i] = OCCUPIED;
     }
@@ -81,25 +81,22 @@ void createChunkMesh(Chunk *chunk, Voxel (*getVoxel)(ivec3 pos)) {
 
                 Voxel neighbours[6];
 
-                if (x != CHUNK_SIZE - 1 && y != CHUNK_SIZE - 1 && z != CHUNK_SIZE - 1 && x != 0 && y != 0 && z != 0) {
-                    neighbours[0] = chunk->voxels[getOffsetIndex(voxel_index, 1, 0, 0)];
-                    neighbours[1] = chunk->voxels[getOffsetIndex(voxel_index,-1, 0, 0)];
-                    neighbours[2] = chunk->voxels[getOffsetIndex(voxel_index, 0, 1, 0)];
-                    neighbours[3] = chunk->voxels[getOffsetIndex(voxel_index, 0,-1, 0)];
-                    neighbours[4] = chunk->voxels[getOffsetIndex(voxel_index, 0, 0, 1)];
-                    neighbours[5] = chunk->voxels[getOffsetIndex(voxel_index, 0, 0,-1)];
-                } else {
-                    ivec3 voxel_pos;
-                    glm_ivec3_scale(chunk->chunk_pos, 16, voxel_pos);
-                    glm_ivec3_add(voxel_pos, (ivec3) {x, y, z}, voxel_pos);
-
-                    neighbours[0] = getVoxel(getOffsetIvec3(voxel_pos, 1, 0, 0));
-                    neighbours[1] = getVoxel(getOffsetIvec3(voxel_pos,-1, 0, 0));
-                    neighbours[2] = getVoxel(getOffsetIvec3(voxel_pos, 0, 1, 0));
-                    neighbours[3] = getVoxel(getOffsetIvec3(voxel_pos, 0,-1, 0));
-                    neighbours[4] = getVoxel(getOffsetIvec3(voxel_pos, 0, 0, 1));
-                    neighbours[5] = getVoxel(getOffsetIvec3(voxel_pos, 0, 0,-1));
-                }
+                ivec3 voxel_pos;
+                glm_ivec3_scale(chunk->chunk_pos, 16, voxel_pos);
+                glm_ivec3_add(voxel_pos, (ivec3) {x, y, z}, voxel_pos);
+                
+                if (x != CHUNK_SIZE - 1) { neighbours[0] = chunk->voxels[getOffsetIndex(voxel_index, 1, 0, 0)]; }
+                else                     { neighbours[0] = getVoxel(getOffsetIvec3(voxel_pos,        1, 0, 0)); }
+                if (x != 0)              { neighbours[1] = chunk->voxels[getOffsetIndex(voxel_index,-1, 0, 0)]; }
+                else                     { neighbours[1] = getVoxel(getOffsetIvec3(voxel_pos,       -1, 0, 0)); }
+                if (y != CHUNK_SIZE - 1) { neighbours[2] = chunk->voxels[getOffsetIndex(voxel_index, 0, 1, 0)]; }
+                else                     { neighbours[2] = getVoxel(getOffsetIvec3(voxel_pos,        0, 1, 0)); }
+                if (y != 0)              { neighbours[3] = chunk->voxels[getOffsetIndex(voxel_index, 0,-1, 0)]; }
+                else                     { neighbours[3] = getVoxel(getOffsetIvec3(voxel_pos,        0,-1, 0)); }
+                if (z != CHUNK_SIZE - 1) { neighbours[4] = chunk->voxels[getOffsetIndex(voxel_index, 0, 0, 1)]; }
+                else                     { neighbours[4] = getVoxel(getOffsetIvec3(voxel_pos,        0, 0, 1)); }
+                if (z != 0)              { neighbours[5] = chunk->voxels[getOffsetIndex(voxel_index, 0, 0,-1)]; }
+                else                     { neighbours[5] = getVoxel(getOffsetIvec3(voxel_pos,        0, 0,-1)); }
                 
                 if (neighbours[0] == OCCUPIED &&
                     neighbours[1] == OCCUPIED &&
