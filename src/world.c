@@ -64,7 +64,7 @@ void renderWorld(World *world, ProgramBundle *chunk_program, mat4 **model_pointe
     for (int i = 0; i < world->chunks.size; i++) {
         Chunk *chunk = vectorIndex(&world->chunks, i);
         *model_pointer = &(chunk->model);
-        renderWithSSBOBundle(window, chunk_program, &(chunk->buffer_bundle), 0, chunk->buffer_bundle.length * FACES_PER_VOXEL * VERTS_PER_FACE / VALS_PER_VOXEL);
+        renderWithSSBOBundle(window, chunk_program, &(chunk->buffer_bundle), 0, chunk->buffer_bundle.length * VERTS_PER_FACE / VALS_PER_VOXEL);
     }
 }
 

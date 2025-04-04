@@ -13,7 +13,7 @@
 #define CHUNK_SIZE 16
 // Max 16 since we then only need 4 bits per axis to represent position
 #define VALS_PER_VOXEL 1
-#define FACES_PER_VOXEL 6
+// #define FACES_PER_VOXEL 6
 #define VERTS_PER_FACE 6
 
 typedef enum Voxel {
@@ -28,8 +28,17 @@ typedef struct VoxelData {
     uint r : 4;
     uint g : 4;
     uint b : 4;
-    uint flags : 8;
+    uint face_id: 3;
+    uint flags : 5;
 } VoxelData;
+
+// Face table:
+// 0 : x+
+// 1 : x-
+// 2 : y+
+// 3 : y-
+// 4 : z+
+// 5 : z-
 
 typedef struct Chunk {
     ivec3 chunk_pos;
@@ -52,89 +61,61 @@ void printBinaryInt(int x) {
     }
 }
 
+void generateNewChunk(Chunk *chunk) {
+    int voxel_count = CHUNK_SIZE * CHUNK_SIZE * CHUNK_SIZE;
+    for (int i = 0; i < voxel_count; i++) {
+        // if (i % 2 == 0) { chunk->voxels[i] = OCCUPIED; }
+        // else { chunk->voxels[i] = EMPTY; }
+        chunk->voxels[i] = OCCUPIED;
+    }
+}
+
 void createChunkMesh(Chunk *chunk, Voxel (*getVoxel)(ivec3 pos)) {
     Vector voxel_data = vectorInit(sizeof(VoxelData), VALS_PER_VOXEL);
 
-    for (int x = 0; x < CHUNK_SIZE; x++) {
-        for (int y = 0; y < CHUNK_SIZE; y++) {
-            for (int z = 0; z < CHUNK_SIZE; z++) {
-                int voxel_index = getVoxelIndex(x, y, z);
+    for (uint x = 0; x < CHUNK_SIZE; x++) {
+        for (uint y = 0; y < CHUNK_SIZE; y++) {
+            for (uint z = 0; z < CHUNK_SIZE; z++) {
+                uint voxel_index = getVoxelIndex(x, y, z);
                 if (chunk->voxels[voxel_index] != OCCUPIED) { continue; }
 
+                Voxel neighbours[6];
+
                 if (x != CHUNK_SIZE - 1 && y != CHUNK_SIZE - 1 && z != CHUNK_SIZE - 1 && x != 0 && y != 0 && z != 0) {
-                    Voxel neighbours[6] = {
-                        chunk->voxels[getOffsetIndex(voxel_index, 1, 0, 0)],
-                        chunk->voxels[getOffsetIndex(voxel_index,-1, 0, 0)],
-                        chunk->voxels[getOffsetIndex(voxel_index, 0, 1, 0)],
-                        chunk->voxels[getOffsetIndex(voxel_index, 0,-1, 0)],
-                        chunk->voxels[getOffsetIndex(voxel_index, 0, 0, 1)],
-                        chunk->voxels[getOffsetIndex(voxel_index, 0, 0,-1)]
-                    };
-
-                    if (neighbours[0] == OCCUPIED &&
-                        neighbours[1] == OCCUPIED &&
-                        neighbours[2] == OCCUPIED &&
-                        neighbours[3] == OCCUPIED &&
-                        neighbours[4] == OCCUPIED &&
-                        neighbours[5] == OCCUPIED) {
-                        continue;
-                    }
-
+                    neighbours[0] = chunk->voxels[getOffsetIndex(voxel_index, 1, 0, 0)];
+                    neighbours[1] = chunk->voxels[getOffsetIndex(voxel_index,-1, 0, 0)];
+                    neighbours[2] = chunk->voxels[getOffsetIndex(voxel_index, 0, 1, 0)];
+                    neighbours[3] = chunk->voxels[getOffsetIndex(voxel_index, 0,-1, 0)];
+                    neighbours[4] = chunk->voxels[getOffsetIndex(voxel_index, 0, 0, 1)];
+                    neighbours[5] = chunk->voxels[getOffsetIndex(voxel_index, 0, 0,-1)];
                 } else {
                     ivec3 voxel_pos;
                     glm_ivec3_scale(chunk->chunk_pos, 16, voxel_pos);
                     glm_ivec3_add(voxel_pos, (ivec3) {x, y, z}, voxel_pos);
 
-                    Voxel neighbours[6] = {
-                        getVoxel(getOffsetIvec3(voxel_pos, 1, 0, 0)),
-                        getVoxel(getOffsetIvec3(voxel_pos,-1, 0, 0)),
-                        getVoxel(getOffsetIvec3(voxel_pos, 0, 1, 0)),
-                        getVoxel(getOffsetIvec3(voxel_pos, 0,-1, 0)),
-                        getVoxel(getOffsetIvec3(voxel_pos, 0, 0, 1)),
-                        getVoxel(getOffsetIvec3(voxel_pos, 0, 0,-1))
-                    };
-
-                    if (neighbours[0] == OCCUPIED &&
-                        neighbours[1] == OCCUPIED &&
-                        neighbours[2] == OCCUPIED &&
-                        neighbours[3] == OCCUPIED &&
-                        neighbours[4] == OCCUPIED &&
-                        neighbours[5] == OCCUPIED) {
-                        continue;
-                    }
+                    neighbours[0] = getVoxel(getOffsetIvec3(voxel_pos, 1, 0, 0));
+                    neighbours[1] = getVoxel(getOffsetIvec3(voxel_pos,-1, 0, 0));
+                    neighbours[2] = getVoxel(getOffsetIvec3(voxel_pos, 0, 1, 0));
+                    neighbours[3] = getVoxel(getOffsetIvec3(voxel_pos, 0,-1, 0));
+                    neighbours[4] = getVoxel(getOffsetIvec3(voxel_pos, 0, 0, 1));
+                    neighbours[5] = getVoxel(getOffsetIvec3(voxel_pos, 0, 0,-1));
                 }
-
-                // float voxel_coords[3] = {x, y, z};
-                // vectorPushArray(&voxel_data, voxel_coords, 3);
-                // 
-                // float vert_color[3] = {(float) x / CHUNK_SIZE, (float) y / CHUNK_SIZE, (float) z / CHUNK_SIZE};
-                // vectorPushArray(&voxel_data, vert_color, 3);
-
-                // int color_r = x;
-                // int color_g = y;
-                // int color_b = z;
-
-                // Voxel data Layout: LSB -> MSB
-                // 4 bits: x in chunk
-                // 4 bits: y in chunk
-                // 4 bits: z in chunk
-                // 4 bits: r * 16
-                // 4 bits: g * 16
-                // 4 bits: b * 16
-                // uint32_t data =     (x & 0xF) | 
-                //                     ((y & 0xF) << 4) | 
-                //                     ((z & 0xF) << 8) | 
-                //                     ((color_r & 0xF) << 12) | 
-                //                     ((color_g & 0xF) << 16) | 
-                //                     ((color_b & 0xF) << 20);
-
-
-                // printf("x: %2d, y: %2d, z: %2d | ", x, y, z);
-                // printBinaryInt(data);
-                // printf(" \n");
                 
-                VoxelData data = {x, y, z, x, y, z, 0};
-                vectorPush(&voxel_data, &data);
+                if (neighbours[0] == OCCUPIED &&
+                    neighbours[1] == OCCUPIED &&
+                    neighbours[2] == OCCUPIED &&
+                    neighbours[3] == OCCUPIED &&
+                    neighbours[4] == OCCUPIED &&
+                    neighbours[5] == OCCUPIED) {
+                    continue;
+                } 
+
+                for (uint face = 0; face < 6; face++) {
+                    if (neighbours[face] == OCCUPIED) { continue; } 
+                    
+                    VoxelData data = {x, y, z, x, y, z, face, 0};
+                    vectorPush(&voxel_data, &data);
+                }
             }
         }
     }
@@ -150,12 +131,7 @@ Chunk *createChunk(ivec3 chunk_pos, int verbose) {
 
     glm_ivec3_copy(chunk_pos, chunk->chunk_pos);
 
-    int voxel_count = CHUNK_SIZE * CHUNK_SIZE * CHUNK_SIZE;
-    for (int i = 0; i < voxel_count; i++) {
-        // if (i % 2 == 0) { chunk->voxels[i] = OCCUPIED; }
-        // else { chunk->voxels[i] = EMPTY; }
-        chunk->voxels[i] = OCCUPIED;
-    }
+    generateNewChunk(chunk);
 
     glm_mat4_dup(GLM_MAT4_IDENTITY, chunk->model);
     vec3 chunk_translation;

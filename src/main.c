@@ -133,12 +133,15 @@ int main() {
 
     bindUniformBufferBundle(&chunk_program, &camera_uniform_buffer_bundle, "CamBlock", 0);
 
-    // Initlialise Camera
-    initialisePlayerCamera(window_width, window_height, (vec3) {0., 0., 0.});
+    #define RD 8
+    #define WH 16
 
-    // Getting weird segfaults when populating world at rd > 4
-    World world = createWorld(8, 16, (ivec2) {0, 0});
+    // SOMETHING TERRIBLE HAPPENS AT RD = 16 ????
+    World world = createWorld(RD, WH, (ivec2) {0, 0});
     // Chunk* test_chunk = createChunk((ivec3) {0, 0, 0});
+    
+    // Initlialise Camera
+    initialisePlayerCamera(window_width, window_height, (vec3) {0., WH * 16, -RD * 16.});
 
     float last = getTimeStamp();
 
