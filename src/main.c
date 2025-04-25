@@ -134,8 +134,8 @@ int main() {
 
     bindUniformBufferBundle(&chunk_program, &camera_uniform_buffer_bundle, "CamBlock", 0);
 
-    #define RD 2
-    #define WH 4
+    #define RD 8
+    #define WH 16
 
     // SOMETHING TERRIBLE HAPPENS AT RD = 16 ????
     World world = createWorld(RD, WH, (ivec2) {0, 0}, 100);

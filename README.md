@@ -11,7 +11,7 @@ So far I have written a chunk / world management system and the basic renderers.
 - Allow the player to place / remove voxels
 - Make a world saving system
 
-![Current progress](images/c-voxel.png)
+![Perlin noise demo](images/perlin_noise.png)
 
 ## Compiling
 This project uses CMake to manage its build process. I have also written a helper script to compile and run the project from its parent directory, but don't expect this to work on a non-unix system.
