@@ -10,6 +10,7 @@
 #include "player.c"
 #include "text.c"
 #include "world.c"
+#include "perlin.c"
 
 #include <stdlib.h>
 #include <stdio.h>
@@ -133,11 +134,11 @@ int main() {
 
     bindUniformBufferBundle(&chunk_program, &camera_uniform_buffer_bundle, "CamBlock", 0);
 
-    #define RD 8
-    #define WH 16
+    #define RD 2
+    #define WH 4
 
     // SOMETHING TERRIBLE HAPPENS AT RD = 16 ????
-    World world = createWorld(RD, WH, (ivec2) {0, 0});
+    World world = createWorld(RD, WH, (ivec2) {0, 0}, 100);
     // Chunk* test_chunk = createChunk((ivec3) {0, 0, 0});
     
     // Initlialise Camera

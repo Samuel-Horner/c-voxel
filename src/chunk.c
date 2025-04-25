@@ -3,6 +3,7 @@
 
 #include "engine.c"
 #include "vector.c"
+#include "perlin.c"
 
 #include "cglm/cglm.h"
 
@@ -54,6 +55,8 @@ SSBOBundle createBuffers(Vector *voxel_data) {
 #define getVoxelIndex(x, y, z) (x * CHUNK_SIZE * CHUNK_SIZE + y * CHUNK_SIZE + z)
 #define getOffsetIndex(index, x_offset, y_offset, z_offset) (index + (CHUNK_SIZE * CHUNK_SIZE * x_offset) + (CHUNK_SIZE * y_offset) + z_offset)
 #define getOffsetIvec3(vec, x_offset, y_offset, z_offset) ((ivec3) {vec[0] + x_offset, vec[1] + y_offset, vec[2] + z_offset})
+// #define getVoxelPos(x, y, z, chunk_pos) {x + 16 * (1 + chunk_pos[0]), y + 16 * chunk_pos[1], z + 16 * (1 + chunk_pos[2])}
+#define getVoxelPos(x, y, z, chunk_pos) {x + CHUNK_SIZE * chunk_pos[0], y + CHUNK_SIZE * chunk_pos[1], z + CHUNK_SIZE * chunk_pos[2]}
 
 void printBinaryInt(int x) {
     for (int i = sizeof(x) * 8 - 1; i >= 0; i--) {
@@ -61,32 +64,52 @@ void printBinaryInt(int x) {
     }
 }
 
-void generateNewChunk(Chunk *chunk) {
-    int voxel_count = CHUNK_SIZE * CHUNK_SIZE * CHUNK_SIZE;
-    for (int i = 0; i < voxel_count; i++) {
-        // if (i % 3 == 0) { chunk->voxels[i] = OCCUPIED; }
-        // else { chunk->voxels[i] = EMPTY; }
-        chunk->voxels[i] = OCCUPIED;
+void generateNewChunk(Chunk *chunk, int seed) {
+    for (uint x = 0; x < CHUNK_SIZE; x++) {
+        for (uint z = 0; z < CHUNK_SIZE; z++) {
+            for (uint y = 0; y < CHUNK_SIZE; y++) {
+                ivec3 voxel_pos;
+                glm_ivec3_scale(chunk->chunk_pos, 16, voxel_pos);
+                glm_ivec3_add(voxel_pos, (ivec3) {x, y, z}, voxel_pos);
+                uint voxel_index = getVoxelIndex(x, y, z);
+                float cut_off = ivec3_perlin_noise(voxel_pos, 16.);
+                
+                if (cut_off < 0) { chunk->voxels[voxel_index] = OCCUPIED; }
+                else { chunk->voxels[voxel_index] = EMPTY; }
+                // chunk->voxels[voxel_index] = OCCUPIED;
+            }
+        }
     }
+
 }
 
 void createChunkMesh(Chunk *chunk, Voxel (*getVoxel)(ivec3 pos)) {
     Vector voxel_data = vectorInit(sizeof(VoxelData), VALS_PER_VOXEL);
 
-    for (uint x = 0; x < CHUNK_SIZE; x++) {
-        for (uint y = 0; y < CHUNK_SIZE; y++) {
-            for (uint z = 0; z < CHUNK_SIZE; z++) {
+    for (int x = 0; x < CHUNK_SIZE; x++) {
+        for (int y = 0; y < CHUNK_SIZE; y++) {
+            for (int z = 0; z < CHUNK_SIZE; z++) {
                 uint voxel_index = getVoxelIndex(x, y, z);
                 if (chunk->voxels[voxel_index] != OCCUPIED) { continue; }
 
                 Voxel neighbours[6];
 
-                ivec3 voxel_pos;
-                glm_ivec3_scale(chunk->chunk_pos, 16, voxel_pos);
-                glm_ivec3_add(voxel_pos, (ivec3) {x, y, z}, voxel_pos);
+                // I THINK THIS IS WRONG
+                ivec3 voxel_pos = getVoxelPos(x, y, z, chunk->chunk_pos);
+                // printf("%u, %u, %u => %d %d %d\n", x, y, z, voxel_pos[0], voxel_pos[1], voxel_pos[2]);
+                // glm_ivec3_scale(chunk->chunk_pos, 16, voxel_pos);
+                // glm_ivec3_add(voxel_pos, (ivec3) {x, y, z}, voxel_pos);
                 
                 if (x != CHUNK_SIZE - 1) { neighbours[0] = chunk->voxels[getOffsetIndex(voxel_index, 1, 0, 0)]; }
-                else                     { neighbours[0] = getVoxel(getOffsetIvec3(voxel_pos,        1, 0, 0)); }
+                else                     { 
+                    // printf("CP: %d, %d, %d ( VP: %d, %d %d -> OFP: %d %d %d)) -> GVP: %d %d %d\n",
+                    //     chunk->chunk_pos[0], chunk->chunk_pos[1], chunk->chunk_pos[2],
+                    //     chunk->chunk_pos[0], chunk->chunk_pos[1], chunk->chunk_pos[2],
+                    //     chunk->chunk_pos[0], chunk->chunk_pos[1], chunk->chunk_pos[2],
+                    //     chunk->chunk_pos[0], chunk->chunk_pos[1], chunk->chunk_pos[2]
+                    // );
+                    neighbours[0] = getVoxel(getOffsetIvec3(voxel_pos,        1, 0, 0)); 
+                }
                 if (x != 0)              { neighbours[1] = chunk->voxels[getOffsetIndex(voxel_index,-1, 0, 0)]; }
                 else                     { neighbours[1] = getVoxel(getOffsetIvec3(voxel_pos,       -1, 0, 0)); }
                 if (y != CHUNK_SIZE - 1) { neighbours[2] = chunk->voxels[getOffsetIndex(voxel_index, 0, 1, 0)]; }
@@ -122,13 +145,13 @@ void createChunkMesh(Chunk *chunk, Voxel (*getVoxel)(ivec3 pos)) {
     freeVector(&voxel_data);
 }
 
-Chunk *createChunk(ivec3 chunk_pos, int verbose) {
+Chunk *createChunk(ivec3 chunk_pos, int verbose, int seed) {
     Chunk *chunk = malloc(sizeof(Chunk));
     if (chunk == NULL) { return NULL; }
 
     glm_ivec3_copy(chunk_pos, chunk->chunk_pos);
 
-    generateNewChunk(chunk);
+    generateNewChunk(chunk, seed);
 
     glm_mat4_dup(GLM_MAT4_IDENTITY, chunk->model);
     vec3 chunk_translation;

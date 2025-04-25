@@ -163,6 +163,7 @@ VertexBufferBundle createTextBuffer() {
 void renderText(VertexBufferBundle *bundle, ProgramBundle *program, char *text, vec2 pos, float scale) {
     glEnable(GL_BLEND);
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+    glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
 
     // Cannot use the render function since we need to bind the texture
     glUseProgram(program->programID);
