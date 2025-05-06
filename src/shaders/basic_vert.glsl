@@ -65,6 +65,7 @@ layout (std140) uniform CamBlock {
 };
 
 uniform mat4 model;
+uniform uint lod_scale;
 
 void main(){
     uint voxel_index = gl_VertexID / VERTEX_PULLING_SCALE;
@@ -84,7 +85,7 @@ void main(){
     uint vert_offset = gl_VertexID % VERTEX_PULLING_SCALE;
 
     uint index = voxel_indices[vert_offset + (face_id * 6)];
-    pos += vert_positions[index];
+    pos += vert_positions[index] * lod_scale;
 
     gl_Position = projection * view * model * vec4(pos, 1.0);
     VertexColor = col;

@@ -46,6 +46,8 @@ typedef struct Chunk {
     Voxel voxels[CHUNK_SIZE * CHUNK_SIZE * CHUNK_SIZE];
     SSBOBundle buffer_bundle;
     mat4 model;
+    int lod; // Level of detail, for CHUNK_SIZE 16 we have 0 (16 x 16), 1 (8 x 8), 2 (4 x 4), 3 (2, 2), 4 (1, 1)
+    int lod_scale; // LOD scale = pow(2, lod)
 } Chunk;
 
 SSBOBundle createBuffers(Vector *voxel_data) {
@@ -55,24 +57,15 @@ SSBOBundle createBuffers(Vector *voxel_data) {
 #define getVoxelIndex(x, y, z) (x * CHUNK_SIZE * CHUNK_SIZE + y * CHUNK_SIZE + z)
 #define getOffsetIndex(index, x_offset, y_offset, z_offset) (index + (CHUNK_SIZE * CHUNK_SIZE * x_offset) + (CHUNK_SIZE * y_offset) + z_offset)
 #define getOffsetIvec3(vec, x_offset, y_offset, z_offset) ((ivec3) {vec[0] + x_offset, vec[1] + y_offset, vec[2] + z_offset})
-// #define getVoxelPos(x, y, z, chunk_pos) {x + 16 * (1 + chunk_pos[0]), y + 16 * chunk_pos[1], z + 16 * (1 + chunk_pos[2])}
 #define getVoxelPos(x, y, z, chunk_pos) {x + CHUNK_SIZE * chunk_pos[0], y + CHUNK_SIZE * chunk_pos[1], z + CHUNK_SIZE * chunk_pos[2]}
 
-void printBinaryInt(int x) {
-    for (int i = sizeof(x) * 8 - 1; i >= 0; i--) {
-        putc(((x >> i) & 1) ? '1' : '0', stdout);       
-    }
-}
-
 void generateNewChunk(Chunk *chunk, int seed) {
-    for (uint x = 0; x < CHUNK_SIZE; x++) {
-        for (uint z = 0; z < CHUNK_SIZE; z++) {
-            for (uint y = 0; y < CHUNK_SIZE; y++) {
-                ivec3 voxel_pos;
-                glm_ivec3_scale(chunk->chunk_pos, 16, voxel_pos);
-                glm_ivec3_add(voxel_pos, (ivec3) {x, y, z}, voxel_pos);
-                uint voxel_index = getVoxelIndex(x, y, z);
-                float cut_off = ivec3_perlin_noise(voxel_pos, 16.);
+    for (int x = 0; x < CHUNK_SIZE; x++) {
+        for (int z = 0; z < CHUNK_SIZE; z++) {
+            for (int y = 0; y < CHUNK_SIZE; y++) {
+                ivec3 voxel_pos = getVoxelPos(x, y, z, chunk->chunk_pos);
+                int voxel_index = getVoxelIndex(x, y, z);
+                float cut_off = ivec3_perlin_noise(voxel_pos, 1. / CHUNK_SIZE);
                 
                 if (cut_off < 0) { chunk->voxels[voxel_index] = OCCUPIED; }
                 else { chunk->voxels[voxel_index] = EMPTY; }
@@ -83,57 +76,148 @@ void generateNewChunk(Chunk *chunk, int seed) {
 
 }
 
+uint opaqueVoxel(Voxel voxel) {
+    return voxel == OCCUPIED;
+}
+
+// This doesnt work:
+// - Doesnt account for scaling up, aka lod 1 -> lod 2 can see a voxel when it is not rendered - Shouldnt be a problem though since player will never see this face
+// - Some issues in scale-to-scale rendering
+void checkVoxelNeighbours(Chunk* chunk, Voxel (*getVoxel)(ivec3 pos), int x, int y, int z, uint voxel_index, ivec3 voxel_pos, uint *neighbours) {
+    if (chunk->lod_scale == 1) {
+        if (x + chunk->lod_scale < CHUNK_SIZE) { neighbours[0] = opaqueVoxel(chunk->voxels[getOffsetIndex(voxel_index, chunk->lod_scale, 0, 0)]); }
+        else                                   { neighbours[0] = opaqueVoxel(getVoxel(getOffsetIvec3(voxel_pos,        chunk->lod_scale, 0, 0))); }
+        if (x - chunk->lod_scale >= 0)         { neighbours[1] = opaqueVoxel(chunk->voxels[getOffsetIndex(voxel_index,-chunk->lod_scale, 0, 0)]); }
+        else                                   { neighbours[1] = opaqueVoxel(getVoxel(getOffsetIvec3(voxel_pos,       -chunk->lod_scale, 0, 0))); }
+        if (y + chunk->lod_scale < CHUNK_SIZE) { neighbours[2] = opaqueVoxel(chunk->voxels[getOffsetIndex(voxel_index, 0, chunk->lod_scale, 0)]); }
+        else                                   { neighbours[2] = opaqueVoxel(getVoxel(getOffsetIvec3(voxel_pos,        0, chunk->lod_scale, 0))); }
+        if (y - chunk->lod_scale >= 0)         { neighbours[3] = opaqueVoxel(chunk->voxels[getOffsetIndex(voxel_index, 0,-chunk->lod_scale, 0)]); }
+        else                                   { neighbours[3] = opaqueVoxel(getVoxel(getOffsetIvec3(voxel_pos,        0,-chunk->lod_scale, 0))); }
+        if (z + chunk->lod_scale < CHUNK_SIZE) { neighbours[4] = opaqueVoxel(chunk->voxels[getOffsetIndex(voxel_index, 0, 0, chunk->lod_scale)]); }
+        else                                   { neighbours[4] = opaqueVoxel(getVoxel(getOffsetIvec3(voxel_pos,        0, 0, chunk->lod_scale))); }
+        if (z - chunk->lod_scale >= 0)         { neighbours[5] = opaqueVoxel(chunk->voxels[getOffsetIndex(voxel_index, 0, 0,-chunk->lod_scale)]); }
+        else                                   { neighbours[5] = opaqueVoxel(getVoxel(getOffsetIvec3(voxel_pos,        0, 0,-chunk->lod_scale))); }
+    } else {
+        // To account for scaling down, we sample 4 times per face.
+        int next_lod = chunk->lod_scale / 2;
+
+        if (x + chunk->lod_scale < CHUNK_SIZE) { neighbours[0] = opaqueVoxel(chunk->voxels[getOffsetIndex(voxel_index, chunk->lod_scale, 0, 0)]); }
+        else { 
+            neighbours[0] = opaqueVoxel(getVoxel(getOffsetIvec3(voxel_pos, chunk->lod_scale, 0,        0       ))) &&
+                            opaqueVoxel(getVoxel(getOffsetIvec3(voxel_pos, chunk->lod_scale, next_lod, 0       ))) &&
+                            opaqueVoxel(getVoxel(getOffsetIvec3(voxel_pos, chunk->lod_scale, 0,        next_lod))) &&
+                            opaqueVoxel(getVoxel(getOffsetIvec3(voxel_pos, chunk->lod_scale, next_lod, next_lod))); 
+        }
+        if (x - chunk->lod_scale >= 0)         { neighbours[1] = opaqueVoxel(chunk->voxels[getOffsetIndex(voxel_index,-chunk->lod_scale, 0, 0)]); }
+        else { 
+            neighbours[1] = opaqueVoxel(getVoxel(getOffsetIvec3(voxel_pos,-chunk->lod_scale, 0,        0       ))) &&
+                            opaqueVoxel(getVoxel(getOffsetIvec3(voxel_pos,-chunk->lod_scale, next_lod, 0       ))) &&
+                            opaqueVoxel(getVoxel(getOffsetIvec3(voxel_pos,-chunk->lod_scale, 0,        next_lod))) &&
+                            opaqueVoxel(getVoxel(getOffsetIvec3(voxel_pos,-chunk->lod_scale, next_lod, next_lod))); 
+        }
+        if (y + chunk->lod_scale < CHUNK_SIZE) { neighbours[2] = opaqueVoxel(chunk->voxels[getOffsetIndex(voxel_index, 0, chunk->lod_scale, 0)]); }
+        else { 
+            neighbours[2] = opaqueVoxel(getVoxel(getOffsetIvec3(voxel_pos, 0,        chunk->lod_scale, 0       ))) &&
+                            opaqueVoxel(getVoxel(getOffsetIvec3(voxel_pos, next_lod, chunk->lod_scale, 0       ))) &&
+                            opaqueVoxel(getVoxel(getOffsetIvec3(voxel_pos, 0,        chunk->lod_scale, next_lod))) &&
+                            opaqueVoxel(getVoxel(getOffsetIvec3(voxel_pos, next_lod, chunk->lod_scale, next_lod))); 
+        }
+        if (y - chunk->lod_scale >= 0)         { neighbours[3] = opaqueVoxel(chunk->voxels[getOffsetIndex(voxel_index, 0,-chunk->lod_scale, 0)]); }
+        else { 
+            neighbours[3] = opaqueVoxel(getVoxel(getOffsetIvec3(voxel_pos, 0,       -chunk->lod_scale, 0       ))) &&
+                            opaqueVoxel(getVoxel(getOffsetIvec3(voxel_pos, next_lod,-chunk->lod_scale, 0       ))) &&
+                            opaqueVoxel(getVoxel(getOffsetIvec3(voxel_pos, 0,       -chunk->lod_scale, next_lod))) &&
+                            opaqueVoxel(getVoxel(getOffsetIvec3(voxel_pos, next_lod,-chunk->lod_scale, next_lod))); 
+        }
+        if (z + chunk->lod_scale < CHUNK_SIZE) { neighbours[4] = opaqueVoxel(chunk->voxels[getOffsetIndex(voxel_index, 0, 0, chunk->lod_scale)]); }
+        else { 
+            neighbours[4] = opaqueVoxel(getVoxel(getOffsetIvec3(voxel_pos, 0,        0       , chunk->lod_scale))) &&
+                            opaqueVoxel(getVoxel(getOffsetIvec3(voxel_pos, next_lod, 0       , chunk->lod_scale))) &&
+                            opaqueVoxel(getVoxel(getOffsetIvec3(voxel_pos, 0,        next_lod, chunk->lod_scale))) &&
+                            opaqueVoxel(getVoxel(getOffsetIvec3(voxel_pos, next_lod, next_lod, chunk->lod_scale))); 
+        }
+        if (z - chunk->lod_scale >= 0)         { neighbours[5] = opaqueVoxel(chunk->voxels[getOffsetIndex(voxel_index, 0, 0,-chunk->lod_scale)]); }
+        else { 
+            neighbours[5] = opaqueVoxel(getVoxel(getOffsetIvec3(voxel_pos, 0,        0       ,-chunk->lod_scale))) &&
+                            opaqueVoxel(getVoxel(getOffsetIvec3(voxel_pos, next_lod, 0       ,-chunk->lod_scale))) &&
+                            opaqueVoxel(getVoxel(getOffsetIvec3(voxel_pos, 0,        next_lod,-chunk->lod_scale))) &&
+                            opaqueVoxel(getVoxel(getOffsetIvec3(voxel_pos, next_lod, next_lod,-chunk->lod_scale))); 
+        }
+    }
+}
+
+// void checkVoxelNeighbours(Chunk *chunk, Voxel (*getVoxel)(ivec3 pos), uint x, uint y, int z, int voxel_index, ivec3 voxel_pos, int *neighbours) {
+//     if (x != CHUNK_SIZE - 1) { neighbours[0] = opaqueVoxel(chunk->voxels[getOffsetIndex(voxel_index, 1, 0, 0)]); }
+//     else                     { neighbours[0] = opaqueVoxel(getVoxel(getOffsetIvec3(voxel_pos,        1, 0, 0))); }
+//     if (x != 0)              { neighbours[1] = opaqueVoxel(chunk->voxels[getOffsetIndex(voxel_index,-1, 0, 0)]); }
+//     else                     { neighbours[1] = opaqueVoxel(getVoxel(getOffsetIvec3(voxel_pos,       -1, 0, 0))); }
+//     if (y != CHUNK_SIZE - 1) { neighbours[2] = opaqueVoxel(chunk->voxels[getOffsetIndex(voxel_index, 0, 1, 0)]); }
+//     else                     { neighbours[2] = opaqueVoxel(getVoxel(getOffsetIvec3(voxel_pos,        0, 1, 0))); }
+//     if (y != 0)              { neighbours[3] = opaqueVoxel(chunk->voxels[getOffsetIndex(voxel_index, 0,-1, 0)]); }
+//     else                     { neighbours[3] = opaqueVoxel(getVoxel(getOffsetIvec3(voxel_pos,        0,-1, 0))); }
+//     if (z != CHUNK_SIZE - 1) { neighbours[4] = opaqueVoxel(chunk->voxels[getOffsetIndex(voxel_index, 0, 0, 1)]); }
+//     else                     { neighbours[4] = opaqueVoxel(getVoxel(getOffsetIvec3(voxel_pos,        0, 0, 1))); }
+//     if (z != 0)              { neighbours[5] = opaqueVoxel(chunk->voxels[getOffsetIndex(voxel_index, 0, 0,-1)]); }
+//     else                     { neighbours[5] = opaqueVoxel(getVoxel(getOffsetIvec3(voxel_pos,        0, 0,-1))); }
+// 
+// }
+
 void createChunkMesh(Chunk *chunk, Voxel (*getVoxel)(ivec3 pos)) {
     Vector voxel_data = vectorInit(sizeof(VoxelData), VALS_PER_VOXEL);
+    int voxels_per_lod_block = (chunk->lod_scale * chunk->lod_scale * chunk->lod_scale);
 
-    for (int x = 0; x < CHUNK_SIZE; x++) {
-        for (int y = 0; y < CHUNK_SIZE; y++) {
-            for (int z = 0; z < CHUNK_SIZE; z++) {
-                uint voxel_index = getVoxelIndex(x, y, z);
+
+    for (int x = 0; x < CHUNK_SIZE; x += chunk->lod_scale) {
+        for (int y = 0; y < CHUNK_SIZE; y += chunk->lod_scale) {
+            for (int z = 0; z < CHUNK_SIZE; z += chunk->lod_scale) {
+                int voxel_index = getVoxelIndex(x, y, z);
+                
+                // int any_voxels_occupied = 0;
+                // ivec3 voxel_color = {0, 0, 0};
+                // for (int i = 0; i < chunk->lod_scale; i++) {
+                //     for (int j = 0; j < chunk->lod_scale; j++) {
+                //         for (int k = 0; k < chunk->lod_scale; k++) {
+                //             if (opaqueVoxel(chunk->voxels[getOffsetIndex(voxel_index, i, j, k)])) {
+                //                 any_voxels_occupied = 1;
+                //                 glm_ivec3_copy((ivec3) {x + i, y + j, z + k}, voxel_color);
+                //                 break;
+                //             }
+                //         }
+                //     }
+                // }
+                // if (!any_voxels_occupied) { continue; }
+
                 if (chunk->voxels[voxel_index] != OCCUPIED) { continue; }
 
-                Voxel neighbours[6];
-
-                // I THINK THIS IS WRONG
+                // int neighbours[6] = {1, 1, 1, 1, 1, 1};
+                uint neighbours[6];
+               
+                // for (int i = 0; i < chunk->lod_scale; i++) {
+                //     for (int j = 0; j < chunk->lod_scale; j++) {
+                //         checkVoxelNeighbours(chunk, getVoxel, x, y, z, voxel_index, neighbours, 0, 0);
+                //     }
+                // }
+                // checkVoxelNeighbours(chunk, getVoxel, x, y, z, voxel_index, neighbours, 0, 0);
+                
                 ivec3 voxel_pos = getVoxelPos(x, y, z, chunk->chunk_pos);
-                // printf("%u, %u, %u => %d %d %d\n", x, y, z, voxel_pos[0], voxel_pos[1], voxel_pos[2]);
-                // glm_ivec3_scale(chunk->chunk_pos, 16, voxel_pos);
-                // glm_ivec3_add(voxel_pos, (ivec3) {x, y, z}, voxel_pos);
+                checkVoxelNeighbours(chunk, getVoxel, x, y, z, voxel_index, voxel_pos, neighbours);
                 
-                if (x != CHUNK_SIZE - 1) { neighbours[0] = chunk->voxels[getOffsetIndex(voxel_index, 1, 0, 0)]; }
-                else                     { 
-                    // printf("CP: %d, %d, %d ( VP: %d, %d %d -> OFP: %d %d %d)) -> GVP: %d %d %d\n",
-                    //     chunk->chunk_pos[0], chunk->chunk_pos[1], chunk->chunk_pos[2],
-                    //     chunk->chunk_pos[0], chunk->chunk_pos[1], chunk->chunk_pos[2],
-                    //     chunk->chunk_pos[0], chunk->chunk_pos[1], chunk->chunk_pos[2],
-                    //     chunk->chunk_pos[0], chunk->chunk_pos[1], chunk->chunk_pos[2]
-                    // );
-                    neighbours[0] = getVoxel(getOffsetIvec3(voxel_pos,        1, 0, 0)); 
-                }
-                if (x != 0)              { neighbours[1] = chunk->voxels[getOffsetIndex(voxel_index,-1, 0, 0)]; }
-                else                     { neighbours[1] = getVoxel(getOffsetIvec3(voxel_pos,       -1, 0, 0)); }
-                if (y != CHUNK_SIZE - 1) { neighbours[2] = chunk->voxels[getOffsetIndex(voxel_index, 0, 1, 0)]; }
-                else                     { neighbours[2] = getVoxel(getOffsetIvec3(voxel_pos,        0, 1, 0)); }
-                if (y != 0)              { neighbours[3] = chunk->voxels[getOffsetIndex(voxel_index, 0,-1, 0)]; }
-                else                     { neighbours[3] = getVoxel(getOffsetIvec3(voxel_pos,        0,-1, 0)); }
-                if (z != CHUNK_SIZE - 1) { neighbours[4] = chunk->voxels[getOffsetIndex(voxel_index, 0, 0, 1)]; }
-                else                     { neighbours[4] = getVoxel(getOffsetIvec3(voxel_pos,        0, 0, 1)); }
-                if (z != 0)              { neighbours[5] = chunk->voxels[getOffsetIndex(voxel_index, 0, 0,-1)]; }
-                else                     { neighbours[5] = getVoxel(getOffsetIvec3(voxel_pos,        0, 0,-1)); }
-                
-                if (neighbours[0] == OCCUPIED &&
-                    neighbours[1] == OCCUPIED &&
-                    neighbours[2] == OCCUPIED &&
-                    neighbours[3] == OCCUPIED &&
-                    neighbours[4] == OCCUPIED &&
-                    neighbours[5] == OCCUPIED) {
+                if (neighbours[0] &&
+                    neighbours[1] &&
+                    neighbours[2] &&
+                    neighbours[3] &&
+                    neighbours[4] &&
+                    neighbours[5]   ) {
                     continue;
                 } 
+                
+                ivec3 voxel_color = {x, y, z};
+                glm_ivec3_adds(voxel_color, chunk->lod_scale / 2, voxel_color);
 
-                for (uint face = 0; face < 6; face++) {
-                    if (neighbours[face] == OCCUPIED) { continue; } 
+                for (int face = 0; face < 6; face++) {
+                    if (neighbours[face]) { continue; } 
                     
-                    VoxelData data = {x, y, z, x, y, z, face, 0};
+                    VoxelData data = {x, y, z, voxel_color[0], voxel_color[1], voxel_color[2], face, 0};
                     vectorPush(&voxel_data, &data);
                 }
             }
@@ -145,11 +229,13 @@ void createChunkMesh(Chunk *chunk, Voxel (*getVoxel)(ivec3 pos)) {
     freeVector(&voxel_data);
 }
 
-Chunk *createChunk(ivec3 chunk_pos, int verbose, int seed) {
+Chunk *createChunk(ivec3 chunk_pos, int verbose, int seed, int lod) {
     Chunk *chunk = malloc(sizeof(Chunk));
     if (chunk == NULL) { return NULL; }
 
     glm_ivec3_copy(chunk_pos, chunk->chunk_pos);
+    chunk->lod = lod;
+    chunk->lod_scale = pow(2, lod);
 
     generateNewChunk(chunk, seed);
 

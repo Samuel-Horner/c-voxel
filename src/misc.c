@@ -13,4 +13,6 @@ int mod(int a, int b) {
     return r < 0 ? r + b : r;
 }
 
+#define max(a, b) (a > b ? a : b)
+
 #endif

@@ -9,16 +9,21 @@
 
 #include <math.h>
 
+#define DEFAULT_FOV 90.
+#define ZOOMED_FOV 30.
+
 typedef struct Camera {
     mat4 projection;
     vec3 pos;
     vec3 dir;
+    vec3 forward;
     vec3 right;
     vec3 up;
     float pitch;
     float yaw;
     float sensitivity;
     float speed;
+    float fov;
 } Camera;
 
 Camera cam;
@@ -42,6 +47,9 @@ void cameraRotate(float yaw, float pitch) {
 
     glm_vec3_cross(cam.right, cam.dir, cam.up);
     glm_vec3_normalize(cam.up);
+
+    glm_vec3_cross(cam.right, (vec3) {0., -1., 0.}, cam.forward);
+    glm_vec3_normalize(cam.forward);
 }
 
 double prev_x = 0;
@@ -62,15 +70,37 @@ void projectionFunction(unsigned int location){
     glBufferSubData(GL_UNIFORM_BUFFER, location, 16 * OPENGL_N_SIZE, cam.projection);
 }
 
-void cameraMovement(GLFWwindow *window, float delta_time) {
+void calculateProjection(int window_width, int window_height) {
+    glm_perspective(cam.fov, (float) window_width / (float) window_height, .1, 1000., cam.projection);
+}
+
+uint zoomed_in = 0;
+void handleZoom(GLFWwindow *window, uint window_width, uint window_height) {
+    if (glfwGetKey(window, GLFW_KEY_C) == GLFW_PRESS) {
+        if (zoomed_in == 0) {
+            cam.fov = glm_rad(ZOOMED_FOV);
+            calculateProjection(window_width, window_height);
+            zoomed_in = 1; 
+        }
+    } else {
+        if (zoomed_in == 1) {
+            cam.fov = glm_rad(DEFAULT_FOV);
+            calculateProjection(window_width, window_height);
+            zoomed_in = 0;
+        }
+    }
+}
+
+void cameraMovement(GLFWwindow *window, float delta_time, uint window_width, uint window_height) {
+    handleZoom(window, window_width, window_height);
     vec3 movement = GLM_VEC3_ZERO_INIT;
     float speed = cam.speed;
 
     if (glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS) { 
-        glm_vec3_add(movement, cam.dir, movement);       
+        glm_vec3_add(movement, cam.forward, movement);       
     } 
     if (glfwGetKey(window, GLFW_KEY_S) == GLFW_PRESS) {
-        glm_vec3_sub(movement, cam.dir, movement);       
+        glm_vec3_sub(movement, cam.forward, movement);       
     }
     if (glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS) { 
         glm_vec3_add(movement, cam.right, movement);       
@@ -91,10 +121,7 @@ void cameraMovement(GLFWwindow *window, float delta_time) {
     glm_vec3_normalize(movement);
     glm_vec3_scale(movement, delta_time * speed, movement);
     glm_vec3_add(cam.pos, movement, cam.pos);
-}
 
-void calculateProjection(int window_width, int window_height) {
-    glm_perspective(glm_rad(45.), (float) window_width / (float) window_height, .1, 1000., cam.projection);
 }
 
 void initialisePlayerCamera(int window_width, int window_height, vec3 initial_pos) {
@@ -102,6 +129,7 @@ void initialisePlayerCamera(int window_width, int window_height, vec3 initial_po
     cam.sensitivity = 0.05;
     cam.pitch = 0;
     cam.yaw = 90; // Start looking in pos_z dir
+    cam.fov = glm_rad(DEFAULT_FOV);
     
     glm_vec3_copy(initial_pos, cam.pos);
     cameraRotate(0, 0);
