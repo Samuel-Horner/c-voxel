@@ -24,24 +24,18 @@ typedef struct World {
 } World;
 
 #define worldSize(world) (world.lod_render_distance * 2 * world.lod_render_distance * 2 * world.world_height)
-// #define worldSize(world) (world.render_distance * 2 * world.render_distance * 2 * world.world_height)
 #define getIndexGivenRelativePos(world, rpos) ((rpos)[0] * 2 * (world).lod_render_distance * (world).world_height + (rpos)[1] * 2 * (world).lod_render_distance + (rpos)[2])
-// #define getIndexGivenRelativePos(world, rpos) ((rpos)[0] * 2 * (world).render_distance * (world).world_height + (rpos)[1] * 2 * (world).render_distance + (rpos)[2])
 
 World *current_world = NULL;
 
 Voxel getVoxel(ivec3 pos) {
     ivec3 chunk_pos = {divFloor(pos[0], CHUNK_SIZE), divFloor(pos[1], CHUNK_SIZE), divFloor(pos[2], CHUNK_SIZE)};
-    // ivec3 relative_pos = {current_world->render_distance, 0, current_world->render_distance};
     ivec3 relative_pos = {current_world->lod_render_distance, 0, current_world->lod_render_distance};
     glm_ivec3_add(chunk_pos, relative_pos, relative_pos);
 
     if (relative_pos[0] < 0 || relative_pos[0] >= current_world->lod_render_distance * 2 ||
         relative_pos[1] < 0 || relative_pos[1] >= current_world->world_height            ||
         relative_pos[2] < 0 || relative_pos[2] >= current_world->lod_render_distance * 2   ){
-    // if (relative_pos[0] < 0 || relative_pos[0] >= current_world->render_distance * 2 ||
-    //     relative_pos[1] < 0 || relative_pos[1] >= current_world->world_height        ||
-    //     relative_pos[2] < 0 || relative_pos[2] >= current_world->render_distance * 2   ){
         return EMPTY;
     }
 
@@ -69,6 +63,7 @@ Voxel getLodVoxel(ivec3 pos) {
     
     ivec3 pos_in_chunk = {mod(pos[0], CHUNK_SIZE), mod(pos[1], CHUNK_SIZE), mod(pos[2], CHUNK_SIZE)};
     glm_ivec3_divs(pos_in_chunk, chunk->lod_scale, pos_in_chunk);
+    glm_ivec3_scale(pos_in_chunk, chunk->lod_scale, pos_in_chunk);
     
     Voxel voxel = chunk->voxels[getVoxelIndex(pos_in_chunk[0], pos_in_chunk[1], pos_in_chunk[2])];
 
@@ -84,9 +79,6 @@ void renderWorld(World *world, ProgramBundle *chunk_program, Chunk **current_chu
 }
 
 void populateWorld(World *world) {
-    // for (int x = -world->render_distance; x < world->render_distance; x++) {
-    //     for (int y = 0; y < world->world_height; y++) {
-    //         for (int z = -world->render_distance; z < world->render_distance; z++) {
     for (int x = -world->lod_render_distance; x < world->lod_render_distance; x++) {
         for (int y = 0; y < world->world_height; y++) {
             for (int z = -world->lod_render_distance; z < world->lod_render_distance; z++) {

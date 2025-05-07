@@ -80,9 +80,8 @@ uint opaqueVoxel(Voxel voxel) {
     return voxel == OCCUPIED;
 }
 
-// This doesnt work:
+// Issues:
 // - Doesnt account for scaling up, aka lod 1 -> lod 2 can see a voxel when it is not rendered - Shouldnt be a problem though since player will never see this face
-// - Some issues in scale-to-scale rendering
 void checkVoxelNeighbours(Chunk* chunk, Voxel (*getVoxel)(ivec3 pos), int x, int y, int z, uint voxel_index, ivec3 voxel_pos, uint *neighbours) {
     if (chunk->lod_scale == 1) {
         if (x + chunk->lod_scale < CHUNK_SIZE) { neighbours[0] = opaqueVoxel(chunk->voxels[getOffsetIndex(voxel_index, chunk->lod_scale, 0, 0)]); }
@@ -145,22 +144,6 @@ void checkVoxelNeighbours(Chunk* chunk, Voxel (*getVoxel)(ivec3 pos), int x, int
         }
     }
 }
-
-// void checkVoxelNeighbours(Chunk *chunk, Voxel (*getVoxel)(ivec3 pos), uint x, uint y, int z, int voxel_index, ivec3 voxel_pos, int *neighbours) {
-//     if (x != CHUNK_SIZE - 1) { neighbours[0] = opaqueVoxel(chunk->voxels[getOffsetIndex(voxel_index, 1, 0, 0)]); }
-//     else                     { neighbours[0] = opaqueVoxel(getVoxel(getOffsetIvec3(voxel_pos,        1, 0, 0))); }
-//     if (x != 0)              { neighbours[1] = opaqueVoxel(chunk->voxels[getOffsetIndex(voxel_index,-1, 0, 0)]); }
-//     else                     { neighbours[1] = opaqueVoxel(getVoxel(getOffsetIvec3(voxel_pos,       -1, 0, 0))); }
-//     if (y != CHUNK_SIZE - 1) { neighbours[2] = opaqueVoxel(chunk->voxels[getOffsetIndex(voxel_index, 0, 1, 0)]); }
-//     else                     { neighbours[2] = opaqueVoxel(getVoxel(getOffsetIvec3(voxel_pos,        0, 1, 0))); }
-//     if (y != 0)              { neighbours[3] = opaqueVoxel(chunk->voxels[getOffsetIndex(voxel_index, 0,-1, 0)]); }
-//     else                     { neighbours[3] = opaqueVoxel(getVoxel(getOffsetIvec3(voxel_pos,        0,-1, 0))); }
-//     if (z != CHUNK_SIZE - 1) { neighbours[4] = opaqueVoxel(chunk->voxels[getOffsetIndex(voxel_index, 0, 0, 1)]); }
-//     else                     { neighbours[4] = opaqueVoxel(getVoxel(getOffsetIvec3(voxel_pos,        0, 0, 1))); }
-//     if (z != 0)              { neighbours[5] = opaqueVoxel(chunk->voxels[getOffsetIndex(voxel_index, 0, 0,-1)]); }
-//     else                     { neighbours[5] = opaqueVoxel(getVoxel(getOffsetIvec3(voxel_pos,        0, 0,-1))); }
-// 
-// }
 
 void createChunkMesh(Chunk *chunk, Voxel (*getVoxel)(ivec3 pos)) {
     Vector voxel_data = vectorInit(sizeof(VoxelData), VALS_PER_VOXEL);
