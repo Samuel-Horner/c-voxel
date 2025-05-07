@@ -5,13 +5,14 @@ This is developed on Arch, so I cannot guarantee if it works on other operating 
 
 ## Current Progress
 So far I have written a chunk / world management system and the basic renderers. The current roadmap is as follows:
-- Optimise single voxels, either by using face culling and greedy meshing or voxel packing
 - Write a simple terrain generation algorithm
-- Create some procedural world loading system
+- Create some procedural infinite (within int limit) world loading system
+- Texture voxels
 - Allow the player to place / remove voxels
 - Make a world saving system
 
-![Perlin noise demo](images/perlin_noise.png)
+<!-- ![Perlin noise demo](images/perlin_noise.png) -->
+![LOD Demo](images/lods.png)
 
 ## Compiling
 This project uses CMake to manage its build process. I have also written a helper script to compile and run the project from its parent directory, but don't expect this to work on a non-unix system.
