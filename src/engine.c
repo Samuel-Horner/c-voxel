@@ -71,9 +71,11 @@ GLFWwindow* initialiseWindow(unsigned int width, unsigned int height) {
     glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
     glfwWindowHint(GLFW_RESIZABLE, GLFW_FALSE);
     glfwWindowHint(GLFW_FLOATING, GLFW_TRUE);
+    // glfwWindowHint(GLFW_DOUBLEBUFFER, GLFW_FALSE);
 
     window = glfwCreateWindow(width, height, "C Voxel", NULL, NULL);
     glfwMakeContextCurrent(window);
+    glfwSwapInterval(0); // Disables v-sync
 
     glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
 

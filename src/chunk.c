@@ -3,7 +3,6 @@
 
 #include "engine.c"
 #include "vector.c"
-#include "perlin.c"
 
 #include "cglm/cglm.h"
 
@@ -59,21 +58,27 @@ SSBOBundle createBuffers(Vector *voxel_data) {
 #define getOffsetIvec3(vec, x_offset, y_offset, z_offset) ((ivec3) {vec[0] + x_offset, vec[1] + y_offset, vec[2] + z_offset})
 #define getVoxelPos(x, y, z, chunk_pos) {x + CHUNK_SIZE * chunk_pos[0], y + CHUNK_SIZE * chunk_pos[1], z + CHUNK_SIZE * chunk_pos[2]}
 
-void generateNewChunk(Chunk *chunk, int seed) {
+void generateNewChunk(Chunk *chunk, int world_height) {
     for (int x = 0; x < CHUNK_SIZE; x++) {
         for (int z = 0; z < CHUNK_SIZE; z++) {
+            // vec2 voxel_pos_2d = {x + CHUNK_SIZE * chunk->chunk_pos[0], z + CHUNK_SIZE * chunk->chunk_pos[2]};
+            // glm_vec2_adds(voxel_pos_2d, 0.5, voxel_pos_2d);
+            // glm_vec2_divs(voxel_pos_2d, CHUNK_SIZE, voxel_pos_2d);
             for (int y = 0; y < CHUNK_SIZE; y++) {
-                ivec3 voxel_pos = getVoxelPos(x, y, z, chunk->chunk_pos);
+                // float height_map = 0.5 * (float) world_height + 0.5 * (float) world_height * glm_perlin_vec2(voxel_pos_2d);
+                vec3 voxel_pos = getVoxelPos(x, y, z, chunk->chunk_pos);
+                glm_vec3_adds(voxel_pos, 0.5, voxel_pos);
+                glm_vec3_divs(voxel_pos, CHUNK_SIZE, voxel_pos);
+                float cut_off = glm_perlin_vec3(voxel_pos);
+
                 int voxel_index = getVoxelIndex(x, y, z);
-                float cut_off = ivec3_perlin_noise(voxel_pos, 1. / CHUNK_SIZE);
-                
-                if (cut_off < 0) { chunk->voxels[voxel_index] = OCCUPIED; }
+                if (cut_off > 0) { chunk->voxels[voxel_index] = OCCUPIED; }
+                // if (y + CHUNK_SIZE * chunk->chunk_pos[1] <= height_map) { chunk->voxels[voxel_index] = OCCUPIED; }
                 else { chunk->voxels[voxel_index] = EMPTY; }
                 // chunk->voxels[voxel_index] = OCCUPIED;
             }
         }
     }
-
 }
 
 uint opaqueVoxel(Voxel voxel) {
@@ -82,8 +87,9 @@ uint opaqueVoxel(Voxel voxel) {
 
 // Issues:
 // - Doesnt account for scaling up, aka lod 1 -> lod 2 can see a voxel when it is not rendered - Shouldnt be a problem though since player will never see this face
+// Still strugling with some down-scaling issues (see rd 1, wh 1, 44, -33), only happens in -x downscaling direction (+x quads)
 void checkVoxelNeighbours(Chunk* chunk, Voxel (*getVoxel)(ivec3 pos), int x, int y, int z, uint voxel_index, ivec3 voxel_pos, uint *neighbours) {
-    if (chunk->lod_scale == 1) {
+    if (chunk->lod_scale == 0) {
         if (x + chunk->lod_scale < CHUNK_SIZE) { neighbours[0] = opaqueVoxel(chunk->voxels[getOffsetIndex(voxel_index, chunk->lod_scale, 0, 0)]); }
         else                                   { neighbours[0] = opaqueVoxel(getVoxel(getOffsetIvec3(voxel_pos,        chunk->lod_scale, 0, 0))); }
         if (x - chunk->lod_scale >= 0)         { neighbours[1] = opaqueVoxel(chunk->voxels[getOffsetIndex(voxel_index,-chunk->lod_scale, 0, 0)]); }
@@ -98,6 +104,7 @@ void checkVoxelNeighbours(Chunk* chunk, Voxel (*getVoxel)(ivec3 pos), int x, int
         else                                   { neighbours[5] = opaqueVoxel(getVoxel(getOffsetIvec3(voxel_pos,        0, 0,-chunk->lod_scale))); }
     } else {
         // To account for scaling down, we sample 4 times per face.
+        // We dont need to account for upscaling, since players will never see those faces
         int next_lod = chunk->lod_scale / 2;
 
         if (x + chunk->lod_scale < CHUNK_SIZE) { neighbours[0] = opaqueVoxel(chunk->voxels[getOffsetIndex(voxel_index, chunk->lod_scale, 0, 0)]); }
@@ -155,34 +162,11 @@ void createChunkMesh(Chunk *chunk, Voxel (*getVoxel)(ivec3 pos)) {
             for (int z = 0; z < CHUNK_SIZE; z += chunk->lod_scale) {
                 int voxel_index = getVoxelIndex(x, y, z);
                 
-                // int any_voxels_occupied = 0;
-                // ivec3 voxel_color = {0, 0, 0};
-                // for (int i = 0; i < chunk->lod_scale; i++) {
-                //     for (int j = 0; j < chunk->lod_scale; j++) {
-                //         for (int k = 0; k < chunk->lod_scale; k++) {
-                //             if (opaqueVoxel(chunk->voxels[getOffsetIndex(voxel_index, i, j, k)])) {
-                //                 any_voxels_occupied = 1;
-                //                 glm_ivec3_copy((ivec3) {x + i, y + j, z + k}, voxel_color);
-                //                 break;
-                //             }
-                //         }
-                //     }
-                // }
-                // if (!any_voxels_occupied) { continue; }
-
                 if (chunk->voxels[voxel_index] != OCCUPIED) { continue; }
 
-                // int neighbours[6] = {1, 1, 1, 1, 1, 1};
-                uint neighbours[6];
-               
-                // for (int i = 0; i < chunk->lod_scale; i++) {
-                //     for (int j = 0; j < chunk->lod_scale; j++) {
-                //         checkVoxelNeighbours(chunk, getVoxel, x, y, z, voxel_index, neighbours, 0, 0);
-                //     }
-                // }
-                // checkVoxelNeighbours(chunk, getVoxel, x, y, z, voxel_index, neighbours, 0, 0);
-                
                 ivec3 voxel_pos = getVoxelPos(x, y, z, chunk->chunk_pos);
+                
+                uint neighbours[6];
                 checkVoxelNeighbours(chunk, getVoxel, x, y, z, voxel_index, voxel_pos, neighbours);
                 
                 if (neighbours[0] &&
@@ -212,7 +196,7 @@ void createChunkMesh(Chunk *chunk, Voxel (*getVoxel)(ivec3 pos)) {
     freeVector(&voxel_data);
 }
 
-Chunk *createChunk(ivec3 chunk_pos, int verbose, int seed, int lod) {
+Chunk *createChunk(ivec3 chunk_pos, int verbose, int world_height, int lod) {
     Chunk *chunk = malloc(sizeof(Chunk));
     if (chunk == NULL) { return NULL; }
 
@@ -220,7 +204,7 @@ Chunk *createChunk(ivec3 chunk_pos, int verbose, int seed, int lod) {
     chunk->lod = lod;
     chunk->lod_scale = pow(2, lod);
 
-    generateNewChunk(chunk, seed);
+    generateNewChunk(chunk, world_height);
 
     glm_mat4_dup(GLM_MAT4_IDENTITY, chunk->model);
     vec3 chunk_translation;

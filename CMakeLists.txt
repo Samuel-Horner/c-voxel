@@ -13,7 +13,7 @@ set(FETCHCONTENT_QUIET FALSE)
 FetchContent_Declare(
   cglm
   GIT_REPOSITORY https://github.com/recp/cglm.git
-  GIT_TAG v0.9.4
+  GIT_TAG v0.9.6
   GIT_PROGRESS TRUE
 )
 

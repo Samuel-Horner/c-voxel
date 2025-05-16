@@ -27,3 +27,8 @@ cmake --build build
 ```
 
 To build this project the only external library you need to install is GLFW and some OpenGL drivers. All other libraries will be fetched by CMake.
+
+Known issues:
+Incorrect getLODVoxel function resulting in missing faces:
+![](images/getLODVoxel_bug_1.png)
+![](images/getLODVoxel_bug_2.png)

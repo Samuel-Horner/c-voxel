@@ -10,12 +10,10 @@
 #include "player.c"
 #include "text.c"
 #include "world.c"
-#include "perlin.c"
 
 #include <stdlib.h>
 #include <stdio.h>
 #include <errno.h>
-#include <time.h>
 #include <unistd.h>
 #include <limits.h>
 #include <sys/resource.h>
@@ -32,17 +30,6 @@ void makeWindowFullscreen(GLFWwindow *window) {
 
 void makeWindowWindowed(GLFWwindow *window) {
     glfwSetWindowMonitor(window, NULL, 0, 0, window_width, window_height, 0);
-}
-
-float getTimeStamp() {
-    struct timespec spec;
-    if (clock_gettime(CLOCK_MONOTONIC, &spec) != 0) {
-        int errsv = errno;
-        printf("ERROR: in clock_gettime. errno: %d\n", errno);
-        return -1.;
-    }
-
-    return (float) spec.tv_sec + spec.tv_nsec / 1.0e9;
 }
 
 // Call Backs
@@ -139,8 +126,8 @@ int main() {
 
     bindUniformBufferBundle(&chunk_program, &camera_uniform_buffer_bundle, "CamBlock", 0);
 
-    #define RD 2
-    #define WH 2
+    #define RD 1
+    #define WH 1
 
     // SOMETHING TERRIBLE HAPPENS AT RD = 16 ????
     World world = createWorld(RD, WH, (ivec2) {0, 0}, 100);
@@ -153,11 +140,22 @@ int main() {
 
     struct rusage r_usage;
 
+    int frame_count = 0;
+    float last_fps_update = 0;
+    int fps = 0;
+
     while(!glfwWindowShouldClose(window)){
         // Calculate delta time
         float current = getTimeStamp();
         float delta_time = current - last;
         last = current;
+        frame_count++;
+
+        if (current >= last_fps_update + 1) {
+            fps = frame_count;
+            frame_count = 0;
+            last_fps_update = current;
+        }
 
         // Process events
         glfwPollEvents();
@@ -166,13 +164,13 @@ int main() {
 
         // Apply uniforms and render
         applyUniformBufferBundle(&camera_uniform_buffer_bundle);
-        renderWorld(&world, &chunk_program, &current_chunk_pointer, window);
+        renderWorld(&world, &chunk_program, &current_chunk_pointer, window, cam.dir, cam.pos);
         // model_pointer = &(test_chunk->model);
         // renderWithSSBOVAOBundle(window, &chunk_program, &(test_chunk->buffer_bundle), 0, test_chunk->buffer_bundle.length * FACES_PER_VOXEL * VERTS_PER_FACE / VALS_PER_VOXEL);
         
         getrusage(RUSAGE_SELF, &r_usage);
         char *debug_string;
-        if(!asprintf(&debug_string, "FPS: %05.1f MEM: %.3fMB POS: (%.3f, %.3f, %.3f) C: %zu RD: %u", 1. / delta_time, r_usage.ru_maxrss / 1048576., cam.pos[0], cam.pos[1], cam.pos[2], world.chunks.size, world.render_distance)) { printf("ERROR: Error creating debug string!\n"); return -1; }
+        if(!asprintf(&debug_string, "FPS: %03d MEM: %.3fMB POS: (%.3f, %.3f, %.3f) C: %zu RD: %u", fps, r_usage.ru_maxrss / 1048576., cam.pos[0], cam.pos[1], cam.pos[2], world.chunks.size, world.render_distance)) { printf("ERROR: Error creating debug string!\n"); return -1; }
         renderText(&text_buffer_bundle, &text_program, debug_string, (vec2) {10, 10}, 0.15);
         free(debug_string);
 
