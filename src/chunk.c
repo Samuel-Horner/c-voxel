@@ -70,12 +70,19 @@ void generateNewChunk(Chunk *chunk, int world_height) {
                 glm_vec3_adds(voxel_pos, 0.5, voxel_pos);
                 glm_vec3_divs(voxel_pos, CHUNK_SIZE, voxel_pos);
                 float cut_off = glm_perlin_vec3(voxel_pos);
-
+                
                 int voxel_index = getVoxelIndex(x, y, z);
                 if (cut_off > 0) { chunk->voxels[voxel_index] = OCCUPIED; }
                 // if (y + CHUNK_SIZE * chunk->chunk_pos[1] <= height_map) { chunk->voxels[voxel_index] = OCCUPIED; }
                 else { chunk->voxels[voxel_index] = EMPTY; }
                 // chunk->voxels[voxel_index] = OCCUPIED;
+
+                // int voxel_index = getVoxelIndex(x, y, z); 
+                // if (voxel_index % 2 == 0) {
+                //     chunk->voxels[voxel_index] = OCCUPIED;
+                // } else {
+                //     chunk->voxels[voxel_index] = EMPTY;
+                // }
             }
         }
     }

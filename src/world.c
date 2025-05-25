@@ -12,6 +12,7 @@
 #include <GLFW/glfw3.h>
 
 #include <stdatomic.h>
+#include <stdint.h>
 #include <stdio.h>
 #include <math.h>
 
@@ -72,24 +73,20 @@ Voxel getLodVoxel(ivec3 pos) {
     return voxel;
 }
 
+#define IN_CHUNK_OFFSET (CHUNK_SIZE / 2)
+#define CHUNK_MIN_CULL_DISTANCE (2 * CHUNK_SIZE) * (2 * CHUNK_SIZE)
 void renderWorld(World *world, ProgramBundle *chunk_program, Chunk **current_chunk_pointer, GLFWwindow *window, vec3 view_dir, vec3 cam_pos) {
     for (int i = 0; i < world->chunks.size; i++) {
         Chunk* chunk = vectorIndex(&world->chunks, i);
         // View direction culling
-        //  Getting weird behaviour, related to camera position.
-        // vec3 real_chunk_pos = {chunk->chunk_pos[0] * CHUNK_SIZE, chunk->chunk_pos[1] * CHUNK_SIZE, chunk->chunk_pos[2] * CHUNK_SIZE};
-        // vec3 chunk_to_cam; glm_vec3_sub(real_chunk_pos, cam_pos, chunk_to_cam); glm_vec3_norm(chunk_to_cam);
-        // float dot = glm_vec3_dot(view_dir, chunk_to_cam);
-        // 
-        // printf("CP: %f %f %f, VD: %f %f %f, RCP %f %f %f, CTC: %f %f %f, DOT: %f\n",
-        //     cam_pos[0], cam_pos[1], cam_pos[2],
-        //     view_dir[0], view_dir[1], view_dir[2],
-        //     real_chunk_pos[0], real_chunk_pos[1], real_chunk_pos[2],
-        //     chunk_to_cam[0], chunk_to_cam[1], chunk_to_cam[2],
-        //     dot
-        // );
-        // 
-        // if (dot < 0) { return; }
+        vec3 real_chunk_pos = {chunk->chunk_pos[0] * CHUNK_SIZE + IN_CHUNK_OFFSET, chunk->chunk_pos[1] * CHUNK_SIZE + IN_CHUNK_OFFSET, chunk->chunk_pos[2] * CHUNK_SIZE + IN_CHUNK_OFFSET};
+        vec3 chunk_to_cam; glm_vec3_sub(real_chunk_pos, cam_pos, chunk_to_cam);
+        
+        float cam_distance = chunk_to_cam[0] * chunk_to_cam[0] + chunk_to_cam[1] * chunk_to_cam[1] + chunk_to_cam[2] * chunk_to_cam[2];
+        if (cam_distance > CHUNK_MIN_CULL_DISTANCE) {
+            float dot = glm_vec3_dot(view_dir, chunk_to_cam);
+            if (dot < 0) { continue; }
+        }
 
         *current_chunk_pointer = chunk;
         renderWithSSBOBundle(window, chunk_program, &(chunk->buffer_bundle), 0, chunk->buffer_bundle.length * VERTS_PER_FACE / VALS_PER_VOXEL);
@@ -101,7 +98,7 @@ void populateWorld(World *world) {
 
     float start = getTimeStamp();
 
-    printf("\n");
+    //printf("\n");
 
     for (int x = -world->lod_render_distance; x < world->lod_render_distance; x++) {
         for (int y = 0; y < world->world_height; y++) {
