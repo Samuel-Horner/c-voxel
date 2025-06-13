@@ -1,6 +1,8 @@
 #ifndef TEXT
 #define TEXT
 
+#include <ctype.h>
+
 #include "cglm/vec3.h"
 #include "engine.c"
 #include "shader.c"
@@ -89,7 +91,7 @@ int generateFreeTypeTexture() {
         glm_ivec2_copy((ivec2) {ft_face->glyph->bitmap.width, ft_face->glyph->bitmap.rows}, ft_characters[c].size);
         glm_ivec2_copy((ivec2) {ft_face->glyph->bitmap_left, ft_face->glyph->bitmap_top}, ft_characters[c].bearing);
 
-        printf("%c", c);
+        if (!isspace(c)) { printf("%c", c); }
     }
 
     printf("\n");
@@ -203,7 +205,5 @@ void renderText(VertexBufferBundle *bundle, ProgramBundle *program, char *text, 
 
     glDisable(GL_BLEND);
 }
-
-void moveText(float x, float y) {}
 
 #endif

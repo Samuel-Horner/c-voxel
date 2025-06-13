@@ -126,8 +126,8 @@ int main() {
 
     bindUniformBufferBundle(&chunk_program, &camera_uniform_buffer_bundle, "CamBlock", 0);
 
-    #define RD 4
-    #define WH 2
+    #define RD 3
+    #define WH 4
 
     // SOMETHING TERRIBLE HAPPENS AT RD = 16 ????
     World world = createWorld(RD, WH, (ivec2) {0, 0}, 100);
@@ -157,6 +157,9 @@ int main() {
             last_fps_update = current;
         }
 
+        // Server Code
+        tickWorld(&world, cam.pos);
+
         // Process events
         glfwPollEvents();
         processInput(window, delta_time);
@@ -170,7 +173,14 @@ int main() {
         
         getrusage(RUSAGE_SELF, &r_usage);
         char *debug_string;
-        if(!asprintf(&debug_string, "FPS: %03d MEM: %.3fMB POS: (%.3f, %.3f, %.3f) C: %zu RD: %u", fps, r_usage.ru_maxrss / 1048576., cam.pos[0], cam.pos[1], cam.pos[2], world.chunks.size, world.render_distance)) { printf("ERROR: Error creating debug string!\n"); return -1; }
+        if(
+            !asprintf(&debug_string, "FPS: %03d MEM: %.3fMB POS: (%.3f, %.3f, %.3f) C: %d RD: %u", 
+                      fps, 
+                      r_usage.ru_maxrss / 1048576., 
+                      cam.pos[0], cam.pos[1], cam.pos[2], 
+                      /* world.chunks.size */ world.chunk_render_count,
+                      world.render_distance)
+        ) { printf("ERROR: Error creating debug string!\n"); return -1; }
         renderText(&text_buffer_bundle, &text_program, debug_string, (vec2) {10, 10}, 0.15);
         free(debug_string);
 

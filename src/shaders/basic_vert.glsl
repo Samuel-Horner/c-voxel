@@ -57,7 +57,27 @@ const int voxel_indices[36] = {
     5, 6, 7
 };
 
+// const vec3 voxel_normals[6] = {
+//     vec3( 1, 0, 0),
+//     vec3(-1, 0, 0),
+//     vec3( 0, 1, 0),
+//     vec3( 0,-1, 0),
+//     vec3( 0, 0, 1),
+//     vec3( 0, 0,-1)
+// };
+
+const float voxel_tints[6] = {
+    0.95, // X+
+    0.95, // X-
+    1.0, // Y+
+    0.8, // Y-
+    0.9, // Z+
+    0.9  // Z-
+};
+
 out vec3 VertexColor;
+// out vec3 VertexNormal;
+out float FaceTint;
 
 layout (std140) uniform CamBlock {
     mat4 view;
@@ -84,9 +104,12 @@ void main(){
 
     uint vert_offset = gl_VertexID % VERTEX_PULLING_SCALE;
 
-    uint index = voxel_indices[vert_offset + (face_id * 6)];
+    uint indices_index = vert_offset + (face_id * 6);
+    uint index = voxel_indices[indices_index];
     pos += vert_positions[index] * lod_scale;
 
     gl_Position = projection * view * model * vec4(pos, 1.0);
     VertexColor = col;
+    // VertexNormal = voxel_normals[indices_index / 6];
+    FaceTint = voxel_tints[indices_index / 6];
 }

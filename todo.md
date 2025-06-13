@@ -1,5 +1,8 @@
 # Errors:
-- Setting all voxels to occupied literally fries my GPU and i have to restart the computer to recover. wtf? all chunks still have at minimum 1 face (wh 2 thf each chunk borders void)? NVM this also happens when doing %2 population. HUH? maybe VRAM full ? maybe due to having a video playing in background and running on an intergrated GPU? Honestly this is not high priority.
+- Setting all voxels to occupied literally fries my GPU and i have to restart the computer to recover. wtf? all chunks still have at minimum 1 face (wh 2 thf each chunk borders void)? NVM this also happens when doing %2 population. HUH? maybe VRAM full ? maybe due to having a video playing in background and running on an intergrated GPU? Honestly this is not high priority. 13/06/25 NVM this is entirely due to high GPU load (e.g. trying to stream even on low settings makes my GPU have issues. Try with dedicated.)
+
+- Still some terrain holes:
+![Terrain hole](images/terrain_hole_error.png)
 
 # TODO:
 - Look into building a region system, with each region containing a static array of indices into a chunk vector. Then the world would contain a vector of regions, and when finding chunk given position we can first find region (int div region_size (in chunk scale)), linear search region vector (low cost, since vector should only be ~4-8 items max), then use chunk map in region to find chunk. Issues:

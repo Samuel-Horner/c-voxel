@@ -70,13 +70,17 @@ GLFWwindow* initialiseWindow(unsigned int width, unsigned int height) {
     glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
     glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
     glfwWindowHint(GLFW_RESIZABLE, GLFW_FALSE);
-    glfwWindowHint(GLFW_FLOATING, GLFW_TRUE);
+    // glfwWindowHint(GLFW_FLOATING, GLFW_TRUE);
+    // This does not play nice with hyprland, sometimes freezing the whole thing.
+
     // glfwWindowHint(GLFW_DOUBLEBUFFER, GLFW_FALSE);
+    // This enables v-sync, locking frame rate.
 
     window = glfwCreateWindow(width, height, "C Voxel", NULL, NULL);
     glfwMakeContextCurrent(window);
     glfwSwapInterval(0); // Disables v-sync
 
+    // Disables cursor. Comment out if things are breaking
     glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
 
     return window;
@@ -92,7 +96,8 @@ int setupOpenGL(unsigned int width, unsigned int height) {
     printf("Loaded OpenGL %d.%d\n", GLAD_VERSION_MAJOR(version), GLAD_VERSION_MINOR(version));
 
     glViewport(0, 0, width, height);
-    glClearColor(1., 0., 1., 1.);
+    // glClearColor(1., 0., 1., 1.);
+    glClearColor(0.43137254901960786, 0.6941176470588235, 1., 1.);
     
     glEnable(GL_DEPTH_TEST);
     glEnable(GL_CULL_FACE);
@@ -259,6 +264,10 @@ void applyUniformBufferBundle(UniformBufferBundle *bundle) {
         bundle->uniforms.values[i].func(bundle->uniforms.values[i].location);
     }
     glBindBuffer(GL_UNIFORM_BUFFER, 0);
+}
+
+void deleteSSBOBundle(SSBOBundle *bundle) {
+    glDeleteBuffers(1, &bundle->SSBO);
 }
 
 SSBOBundle createSSBOBundle(void *values, size_t data_size, unsigned int length, int verbose) {

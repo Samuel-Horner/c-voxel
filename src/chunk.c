@@ -3,6 +3,7 @@
 
 #include "engine.c"
 #include "vector.c"
+#include "noise.c"
 
 #include "cglm/cglm.h"
 
@@ -61,28 +62,16 @@ SSBOBundle createBuffers(Vector *voxel_data) {
 void generateNewChunk(Chunk *chunk, int world_height) {
     for (int x = 0; x < CHUNK_SIZE; x++) {
         for (int z = 0; z < CHUNK_SIZE; z++) {
-            // vec2 voxel_pos_2d = {x + CHUNK_SIZE * chunk->chunk_pos[0], z + CHUNK_SIZE * chunk->chunk_pos[2]};
-            // glm_vec2_adds(voxel_pos_2d, 0.5, voxel_pos_2d);
-            // glm_vec2_divs(voxel_pos_2d, CHUNK_SIZE, voxel_pos_2d);
-            for (int y = 0; y < CHUNK_SIZE; y++) {
-                // float height_map = 0.5 * (float) world_height + 0.5 * (float) world_height * glm_perlin_vec2(voxel_pos_2d);
-                vec3 voxel_pos = getVoxelPos(x, y, z, chunk->chunk_pos);
-                glm_vec3_adds(voxel_pos, 0.5, voxel_pos);
-                glm_vec3_divs(voxel_pos, CHUNK_SIZE, voxel_pos);
-                float cut_off = glm_perlin_vec3(voxel_pos);
-                
-                int voxel_index = getVoxelIndex(x, y, z);
-                if (cut_off > 0) { chunk->voxels[voxel_index] = OCCUPIED; }
-                // if (y + CHUNK_SIZE * chunk->chunk_pos[1] <= height_map) { chunk->voxels[voxel_index] = OCCUPIED; }
-                else { chunk->voxels[voxel_index] = EMPTY; }
-                // chunk->voxels[voxel_index] = OCCUPIED;
+            vec2 column_pos = {x + CHUNK_SIZE * chunk->chunk_pos[0], z + CHUNK_SIZE * chunk->chunk_pos[2]};
+            glm_vec2_divs(column_pos, CHUNK_SIZE * 4, column_pos);
+            // Perlin noise
+            int cut_off = (int) (layered2DNoise(column_pos, 4, 0.25, 2) * world_height * CHUNK_SIZE * 0.5) - chunk->chunk_pos[1] * CHUNK_SIZE + (world_height / 2) * CHUNK_SIZE;
 
-                // int voxel_index = getVoxelIndex(x, y, z); 
-                // if (voxel_index % 2 == 0) {
-                //     chunk->voxels[voxel_index] = OCCUPIED;
-                // } else {
-                //     chunk->voxels[voxel_index] = EMPTY;
-                // }
+            for (int y = 0; y < CHUNK_SIZE; y++) {
+                int voxel_index = getVoxelIndex(x, y, z);
+                if (y < cut_off) { chunk->voxels[voxel_index] = OCCUPIED; }
+                else { chunk->voxels[voxel_index] = EMPTY; }
+                //chunk->voxels[voxel_index] = OCCUPIED;
             }
         }
     }
@@ -163,13 +152,12 @@ void createChunkMesh(Chunk *chunk, Voxel (*getVoxel)(ivec3 pos)) {
     Vector voxel_data = vectorInit(sizeof(VoxelData), VALS_PER_VOXEL);
     int voxels_per_lod_block = (chunk->lod_scale * chunk->lod_scale * chunk->lod_scale);
 
-
     for (int x = 0; x < CHUNK_SIZE; x += chunk->lod_scale) {
         for (int y = 0; y < CHUNK_SIZE; y += chunk->lod_scale) {
             for (int z = 0; z < CHUNK_SIZE; z += chunk->lod_scale) {
                 int voxel_index = getVoxelIndex(x, y, z);
                 
-                if (chunk->voxels[voxel_index] != OCCUPIED) { continue; }
+                if (!opaqueVoxel(chunk->voxels[voxel_index])) { continue; }
 
                 ivec3 voxel_pos = getVoxelPos(x, y, z, chunk->chunk_pos);
                 
@@ -185,8 +173,20 @@ void createChunkMesh(Chunk *chunk, Voxel (*getVoxel)(ivec3 pos)) {
                     continue;
                 } 
                 
-                ivec3 voxel_color = {x, y, z};
-                glm_ivec3_adds(voxel_color, chunk->lod_scale / 2, voxel_color);
+                ivec3 voxel_color; // 4 bits per channel (0 - 16);
+                int real_y = y + chunk->chunk_pos[1] * CHUNK_SIZE + (int) ((((float) rand() / RAND_MAX) - 0.5) * 4);
+                if (real_y < 16) {
+                    glm_ivec3_copy((ivec3) {8, 8, 8}, voxel_color);
+                } else if (real_y < 32) {
+                    glm_ivec3_copy((ivec3) {9, 7, 5}, voxel_color);
+                } else if (real_y < 48) {
+                    glm_ivec3_copy((ivec3) {7, 12, 5}, voxel_color);
+                } else {
+                    glm_ivec3_copy((ivec3) {15, 15, 15}, voxel_color);
+                }
+
+                // ivec3 voxel_color = {x, y, z};
+                // glm_ivec3_adds(voxel_color, chunk->lod_scale / 2, voxel_color);
 
                 for (int face = 0; face < 6; face++) {
                     if (neighbours[face]) { continue; } 
@@ -201,6 +201,14 @@ void createChunkMesh(Chunk *chunk, Voxel (*getVoxel)(ivec3 pos)) {
     chunk->buffer_bundle = createBuffers(&voxel_data);
 
     freeVector(&voxel_data);
+}
+
+void updateChunkLOD(Chunk *chunk, int lod, Voxel (*getVoxel)(ivec3 pos)) {
+    chunk->lod = lod;
+    chunk->lod_scale = pow(2, lod);
+
+    deleteSSBOBundle(&chunk->buffer_bundle);
+    createChunkMesh(chunk, getVoxel); // Remesh
 }
 
 Chunk *createChunk(ivec3 chunk_pos, int verbose, int world_height, int lod) {
